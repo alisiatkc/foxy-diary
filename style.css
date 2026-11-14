@@ -32,3 +32,28 @@
  .comparison-card{padding:11px}.comparison-table{font-size:11px;min-width:460px}.comparison-table th,.comparison-table td{padding:10px 7px}.comparison-set{font-size:11px}
 }
 @media print{.comparison-scroll{overflow:visible}.comparison-table{min-width:0}}
+
+/* Clear labels and comfortable touch targets during a workout. */
+.set-weight,.set-reps,.set-done{min-width:0}
+.set-weight>span,.set-reps>span{display:none}
+.set-done{display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}
+.set-done input[type=checkbox]{width:24px;height:24px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:root{--muted:#76666e}
+button.primary{background:var(--accent-strong);border-color:var(--accent-strong)}
+@media(max-width:780px){
+ input,select,textarea{font-size:16px}
+ .main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+ .workout-exercise>.row{align-items:flex-start;flex-wrap:nowrap}
+ .workout-exercise>.row>div{flex:1;min-width:0}
+ .workout-exercise>.row>button{flex-shrink:0;min-height:44px}
+ .set:not(.sethead){grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 44px;column-gap:8px}
+ .set:not(.sethead)>.set-weight{grid-area:weight}
+ .set:not(.sethead)>.set-reps{grid-area:reps}
+ .set:not(.sethead)>.set-done{grid-area:check;min-width:44px;min-height:44px}
+ .set-weight>span,.set-reps>span{display:block;font-size:11px;color:#76666e}
+ .set-weight input,.set-reps input{min-height:48px;font-size:16px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums;padding:10px 4px}
+ .set:not(.sethead)>button{min-height:44px;width:44px}
+ .set:has(.set-done input:checked){background:var(--accent-pale);border-color:#d9b2c1}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button,input,textarea,select{transition:none}button:active{transform:none}}
