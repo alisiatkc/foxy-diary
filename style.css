@@ -62,3 +62,17 @@ button.primary{background:var(--accent-strong);border-color:var(--accent-strong)
 .workout-summary span{font-size:12px;color:var(--muted)}
 .workout-exercise button .lucide-icon{width:16px;height:16px}
 @media(max-width:780px){.workout-summary{display:grid;gap:4px}.set:not(.sethead)>button .lucide-icon{width:18px;height:18px}}
+
+/* Final responsive and accessibility details. */
+.report-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.report-scroll .table{min-width:420px}
+textarea{min-height:96px;resize:vertical}
+.workout-exercise .exercise-title{overflow-wrap:anywhere}
+@media(max-width:780px){
+ .bottom button{font-size:10px;color:#76666e}
+ .set .set-done input[type=checkbox]{width:24px;height:24px}
+ .fields>label{min-width:0}
+ .workout-exercise .fields{margin-top:16px}
+ .report-scroll{margin:0 -4px}
+}
+@media print{.report-scroll{overflow:visible}.report-scroll .table{min-width:0}.workout-summary{display:none}}
