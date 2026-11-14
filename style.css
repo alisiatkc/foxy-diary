@@ -76,3 +76,7 @@ textarea{min-height:96px;resize:vertical}
  .report-scroll{margin:0 -4px}
 }
 @media print{.report-scroll{overflow:visible}.report-scroll .table{min-width:0}.workout-summary{display:none}}
+
+.nav-label-mobile{display:none}
+@media(max-width:780px){.bottom .nav-label-full{display:none}.bottom .nav-label-mobile{display:block}.bottom button{gap:4px;font-size:10px}}
+@media(max-width:380px){.bottom{padding-left:4px;padding-right:4px}.bottom button{font-size:9px}}

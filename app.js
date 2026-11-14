@@ -49,7 +49,7 @@ const paths={
 "plus":'<path d="M12 5v14M5 12h14"/>'
 };
 function lucide(name,size){return '<svg class="lucide-icon" aria-hidden="true" width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'+(paths[name]||paths["dumbbell"])+'</svg>'}
-function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["reports","Отчёты","file-chart-column"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span>'+name+'</span></button>').join("")}
+function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["reports","Отчёты","file-chart-column"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span class="nav-label-full">'+name+'</span><span class="nav-label-mobile">'+({programs:"Планы",metrics:"Замеры"}[id]||name)+'</span></button>').join("")}
 function go(p){page=p;sessionId=null;render();if(p==="data"){const c=cloudConfig();if($("cloudUrl"))$("cloudUrl").value=c.url||"";if($("cloudKey"))$("cloudKey").value=c.key||""}}
 function render(){if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="reports")return reports();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
 function calendar(){
