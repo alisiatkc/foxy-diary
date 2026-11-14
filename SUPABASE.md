@@ -36,4 +36,4 @@ Client checks cover offline saves, two-device merges, conflicts, repeated import
 Run client tests with: `node --test tests/cloud-sync.test.cjs`.
 
 ## Current setup status
-The database and private history are provisioned. Account confirmation and the final dashboard Site URL setting require the owner's sign-in.
+The database and private history are provisioned. The production Site URL and both exact FOXY redirect URLs are configured and verified in the Supabase dashboard. Email confirmation remains enabled. The owner still needs to create a FOXY account, confirm their email, and sign in once to claim the prepared history.
