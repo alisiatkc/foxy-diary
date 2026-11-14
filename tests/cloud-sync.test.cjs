@@ -96,7 +96,7 @@ test("passwordless form sends one email request and throttles repeated clicks",a
  const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];
  const win={location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}},addEventListener:()=>{}};
  const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudSendLoginLink,go};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},win,{onLine:true},async(url,opts)=>{calls.push({url,body:JSON.parse(opts.body)});return {ok:true,text:async()=>"{}"}});
- api.go("data");assert.ok(!nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Получить письмо для входа"));
+ api.go("data");assert.ok(nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Получить письмо для входа"));
  await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.ok(calls[0].url.includes("/auth/v1/otp?redirect_to="));assert.deepEqual(calls[0].body,{email:"test@example.invalid",create_user:true});
  await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.equal(nodes.get("sendLoginLink").disabled,false);
 });
@@ -107,4 +107,12 @@ test("email sign-in clears stale password recovery and strips credentials from U
  const api=new Function("localStorage","sessionStorage","document","window","navigator",source+";return {consumeAuthCallback,getPage:()=>page};")(storage,storage,{getElementById:id=>id==="app"?root:status,addEventListener:()=>{}},win,{onLine:false});
  storage.setItem("foxy-recovery-mode","1");win.location.hash="#access_token=fake-test&refresh_token=fake-refresh&type=magiclink";
  assert.equal(api.consumeAuthCallback(),false);assert.equal(win.location.hash,"");assert.equal(storage.getItem("foxy-recovery-mode"),null);assert.equal(api.getPage(),"history");
+});
+
+test("password login failure keeps the diary and provides recovery guidance",async()=>{
+ const mem=new Map(),root={innerHTML:""},status={textContent:""},button={disabled:false,textContent:""};
+ const nodes=new Map([["app",root],["cloudStatus",status],["syncBadge",status],["cloudEmail",{value:"test@example.invalid"}],["cloudPassword",{value:"test-only-fake"}],["passwordLogin",button]]);
+ const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
+ const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudLogin,snapshot:()=>JSON.stringify(db)};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},{onLine:false},async()=>({ok:false,status:400,text:async()=>JSON.stringify({message:"Invalid login credentials"})}));
+ const before=api.snapshot();await api.cloudLogin({preventDefault(){}});assert.equal(api.snapshot(),before);assert.ok(status.textContent.includes("Задать или восстановить пароль"));assert.equal(button.disabled,false);
 });
