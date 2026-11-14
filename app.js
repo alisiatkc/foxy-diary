@@ -134,7 +134,6 @@ function reports(){
    const vals=display.map(s=>{const e=s.exercises.find(x=>x.num===ex.num||x.id===ex.id);return '<td>'+(e?e.sets.map((st,i)=>'<div class="comparison-set"><small>'+(i+1)+'</small> '+esc(st.weight||'—')+' × '+esc(st.reps||'—')+'</div>').join(''):'—')+'</td>'}).join('');
    return '<tr><th class="comparison-exercise">'+esc(ex.num)+' '+esc(ex.name)+'</th>'+vals+'</tr>'
   }).join('');
-  rows+='<tr class="comparison-total"><th>Поднято, кг</th>'+display.map(s=>'<td>'+loadLabel(trainingLoad(s).kg)+'</td>').join('')+'</tr>';
   view='<div class="card comparison-card"><div class="report-brand">ALISA</div><h2>'+esc(p.name)+'</h2><p class="muted">Сравнение тренировок · '+display.map(s=>esc(s.date.slice(8)+'.'+s.date.slice(5,7))).join(' / ')+'</p><div class="comparison-scroll"><table class="comparison-table"><thead><tr><th>Упражнение</th>'+cols+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
  }
  layout("Прогресс","Сравни несколько дат и сохрани готовую картинку для Владимира",progressTabs("reports")+selections+view)
@@ -147,11 +146,10 @@ function downloadReport(){
  const W=1240,pad=42,colName=415,col=(W-2*pad-colName)/sessions.length,x0=pad,y0=230,rows=[];
  const cvs=document.createElement('canvas'),ctx=cvs.getContext('2d');ctx.font='27px Manrope, sans-serif';
  for(const ex of p.exercises){const nameLines=wrapText(ctx,ex.num+' '+ex.name,colName-32);const count=Math.max(3,...sessions.map(s=>s.exercises.find(e=>e.num===ex.num)?.sets.length||0));rows.push({ex,nameLines,height:Math.max(nameLines.length*33+30,count*32+42)})}
- const height=y0+rows.reduce((a,b)=>a+b.height,0)+112;cvs.width=W;cvs.height=height;ctx.fillStyle='#f0f1f3';ctx.fillRect(0,0,W,height);
+ const height=y0+rows.reduce((a,b)=>a+b.height,0)+66;cvs.width=W;cvs.height=height;ctx.fillStyle='#f0f1f3';ctx.fillRect(0,0,W,height);
  ctx.fillStyle='#171717';ctx.font='700 48px sans-serif';ctx.fillText('ALISA',pad,80);ctx.fillStyle='#171717';ctx.font='600 25px sans-serif';ctx.fillText(p.name,pad,125);ctx.fillStyle='#686b72';ctx.font='21px sans-serif';ctx.fillText('СРАВНЕНИЕ ТРЕНИРОВОК',pad,164);
  ctx.fillStyle='#ececec';ctx.fillRect(pad,y0-55,W-pad*2,55);ctx.fillStyle='#171717';ctx.font='700 22px sans-serif';ctx.fillText('Упражнение',pad+16,y0-19);sessions.forEach((s,i)=>ctx.fillText(s.date.slice(8)+'.'+s.date.slice(5,7),pad+colName+i*col+20,y0-19));
  let yy=y0;for(const r of rows){ctx.fillStyle='#fff';ctx.fillRect(pad,yy,W-pad*2,r.height);ctx.strokeStyle='#e1e4eb';ctx.lineWidth=1;ctx.strokeRect(pad,yy,W-pad*2,r.height);ctx.beginPath();ctx.moveTo(pad+colName,yy);ctx.lineTo(pad+colName,yy+r.height);sessions.forEach((_,i)=>{if(i>0){ctx.moveTo(pad+colName+i*col,yy);ctx.lineTo(pad+colName+i*col,yy+r.height)}});ctx.stroke();ctx.font='600 22px sans-serif';ctx.fillStyle='#171717';r.nameLines.forEach((t,j)=>ctx.fillText(t,pad+14,yy+36+j*33));sessions.forEach((s,i)=>{const e=s.exercises.find(e=>e.num===r.ex.num),sets=e?.sets||[];ctx.font='21px sans-serif';ctx.fillStyle='#171717';sets.forEach((st,k)=>ctx.fillText((k+1)+'. '+(st.weight||'—')+' × '+(st.reps||'—'),pad+colName+i*col+18,yy+35+k*32))});yy+=r.height}
- ctx.fillStyle='#ececec';ctx.fillRect(pad,yy,W-pad*2,64);ctx.fillStyle='#171717';ctx.font='600 22px sans-serif';ctx.fillText('Поднято, кг',pad+16,yy+39);sessions.forEach((s,i)=>ctx.fillText(loadLabel(trainingLoad(s).kg),pad+colName+i*col+18,yy+39));
  cvs.toBlob(b=>{if(!b)return;const url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='ALISA-'+p.name.replace(/\s+/g,'-')+'-'+sessions.map(s=>s.date).join('_')+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)},'image/png')
 }
 
