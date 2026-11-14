@@ -1,0 +1,39 @@
+# ALISA visual QA
+
+Source visual truth: user attachment `Снимок экрана 2026-11-14 в 22.47.50.png` (980 × 778 px).
+Implementation evidence: `/workspace/shared/alisa-orange-mobile.jpg`, captured through the cloud browser.
+Implementation: isolated same-code fixture at `_style-preview.html`, removed after verification.
+Viewport: 393 × 852 CSS px iframe; 378 px usable width with the desktop scrollbar. Browser zoom 100%. No device chrome was recreated.
+State: main dashboard using synthetic training records; measurements, progress and plans also exercised. Production authentication and stored diary records were not altered.
+
+## Scope and comparison
+
+The supplied board is a style reference, not a request to copy its English fitness product or introduce steps, weather, social feeds or an unrelated avatar. Compared app-owned content: light neutral canvas, orange statistics and chart bars, powder-blue large sections, black controls, pill navigation and restrained type. The reference's phone bezels, status bars and unrelated personal imagery are intentionally excluded. The reference image and browser-rendered implementation were opened and inspected. Full dashboard and focused progress/form/navigation regions were checked; no claim of a pixel-identical clone is made.
+
+## Required surfaces
+
+- Typography: existing Manrope retained for Cyrillic and consistent loading; lighter 400/500 weights, 33 px mobile heading and 40 px statistics. No clipped labels observed.
+- Spacing: 18 px mobile page gutters, 20 px card padding, 10 px tile gap, 22–30 px rounded sections. Fixed navigation floats above the bottom; content has compensating bottom padding.
+- Colors: neutral #F0F1F3, ink #171717, orange #EF5B0C, blue #DFE5F2. Orange used for graphical emphasis, black/white for primary action contrast.
+- Assets: existing ALISA vector mark recolored; Lucide icon system preserved as requested. No fabricated portrait, decorative raster substitute or duplicate phone chrome.
+- Content: existing Russian section names preserved exactly. No new decorative headings or subtitles.
+
+## Interactions and diagnostics
+
+- Opened Plans accordion and verified its expanded exercise list.
+- Entered a comma-decimal body measurement and verified the saved history card.
+- Opened Progress and checked orange rounded bars and blue history cards.
+- Root width equals scroll width in the mobile frame: 378 px; no horizontal document overflow.
+- Checked captured error logs: extension metadata errors only; no application errors observed.
+- All 16 Node tests passed, including PIN and cloud sync regressions.
+- Physical iPhone/Safari was not tested.
+
+## Findings and comparison history
+
+No actionable P0/P1/P2 findings were identified in the style comparison. No visual corrections were needed after the rendered comparison. Intentional differences are the ALISA-specific content, the original mark, and the absence of the reference's avatar/decorative orb.
+
+## Follow-up polish
+
+P3: verify rendering on a physical iPhone when available.
+
+final result: passed
