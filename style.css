@@ -94,3 +94,17 @@ textarea{min-height:96px;resize:vertical}
 .pin-panel input{margin:10px 0 16px;min-height:60px;font-size:28px;text-align:center;letter-spacing:12px;padding-left:24px}
 .pin-panel button{width:100%;min-height:52px;font-size:15px}
 .pin-message{font-size:13px;line-height:1.65;color:var(--muted);margin-top:18px;text-align:center;min-height:48px}
+
+.program-card summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none;min-height:48px}
+.program-card summary::-webkit-details-marker{display:none}
+.program-card summary strong{display:block;font-size:18px;letter-spacing:-.3px}
+.program-card summary small{display:block;margin-top:3px}
+.program-card summary>.lucide-icon{flex-shrink:0;transition:transform .18s ease}
+.program-card[open] summary>.lucide-icon{transform:rotate(180deg)}
+.program-content{border-top:1px solid var(--line);margin-top:14px;padding-top:4px}
+.program-exercises{margin-top:12px}
+.program-exercise{padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:nowrap;align-items:flex-start}
+.program-exercise>span{min-width:0;overflow-wrap:anywhere;flex:1}
+.program-exercise>button{flex-shrink:0;min-height:44px}
+@media(max-width:780px){.metric-form .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.metric-form .field{min-width:0;max-width:none;width:100%}.metric-form input,.metric-form select{min-height:48px;font-size:16px}.metric-form button.primary{min-height:48px;width:100%}.metric-form label{font-size:12px}.program-card{padding:16px}}
+@media(max-width:440px){.metric-form .fields{grid-template-columns:minmax(0,1fr)}}
