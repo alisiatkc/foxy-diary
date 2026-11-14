@@ -27,7 +27,7 @@ function setup() {
   };
   const api = new Function("localStorage","sessionStorage","document","window","navigator","fetch","setTimeout","clearTimeout","alert","confirm","prompt",
    source+";return {connectCloud,syncCloud,mergeDiary,sameValue,go,editSet,editSession,openSession,newSession,deleteSession,initial,save,snapshot:()=>JSON.parse(JSON.stringify(db)),status:()=>({syncMessage,syncConflict,syncReady})};")(
-   storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{},activeElement:null},{addEventListener:()=>{}},nav,fetcher,
+   storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{},activeElement:null},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},nav,fetcher,
    fn=>{timers.push(fn);return timers.length},()=>{},()=>{},()=>true,()=>null);
   storage.setItem("foxy-cloud-session-v2",JSON.stringify({access_token:"test-only",expires_at:Date.now()+999999}));
   return {api,mem,nav,nodes,timers};
@@ -81,4 +81,12 @@ test("stale revisions are rejected and a different account cannot upload the loc
  assert.equal(server.writes,writes);assert.equal(a.api.status().syncConflict,true);
  a.mem.set("foxy-diary-owner-v1","someone-else");
  await assert.rejects(a.api.connectCloud(),/другой учётной записи/);
+});
+
+test("recovery callback removes tokens from URL and opens password form",()=>{
+ const mem=new Map(),root={innerHTML:""},status={textContent:""};
+ const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
+ const win={location:{hash:"#access_token=fake-test&refresh_token=fake-refresh&type=recovery",pathname:"/foxy-diary/index.html",search:""},history:{replaceState:()=>{win.location.hash=""}},addEventListener:()=>{}};
+ new Function("localStorage","sessionStorage","document","window","navigator","fetch","setTimeout","clearTimeout",source)(storage,storage,{getElementById:id=>id==="app"?root:status,addEventListener:()=>{}},win,{onLine:false},()=>{throw Error("Recovery must not sync before password change")},()=>1,()=>{});
+ assert.equal(win.location.hash,"");assert.equal(storage.getItem("foxy-recovery-mode"),"1");assert.ok(root.innerHTML.includes('id="newPassword"'));
 });
