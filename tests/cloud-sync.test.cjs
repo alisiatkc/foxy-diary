@@ -10,11 +10,12 @@ function setup() {
  const server = { row:null, history:null, writes:0, beforeSave:null };
  function client(user = "user-a") {
   const mem = new Map(), nav = { onLine:true }, timers = [];
-  const nodes = new Map([["app",{innerHTML:""}],["syncBadge",{textContent:""}],["cloudStatus",{textContent:""}]]);
+  const nodes = new Map([["app",{innerHTML:""}],["syncBadge",{textContent:""}],["cloudStatus",{textContent:""}],["pinCode",{value:"",focus:()=>{}}],["pinSubmit",{disabled:false,textContent:""}],["pinMessage",{textContent:""}]]);
   const storage = { getItem:k=>mem.get(k)||null, setItem:(k,v)=>mem.set(k,v), removeItem:k=>mem.delete(k) };
   const fetcher = async(url,opts={})=>{
    const route=url.split(".supabase.co")[1]; let data,status=200;
-   if(route==="/auth/v1/user") data={id:user,email_confirmed_at:"2026-11-14"};
+   if(route==="/functions/v1/alisa-pin-login"){server.requestedPin=JSON.parse(opts.body).pin;if(server.rejectPin){status=401;data={message:"Неверный код"}}else data={access_token:"test-pin-token",refresh_token:"test-pin-refresh",expires_in:3600}}
+   else if(route==="/auth/v1/user") data={id:user,email_confirmed_at:"2026-11-14"};
    else if(route==="/rest/v1/rpc/foxy_claim_history") data=server.history;
    else if(route.startsWith("/rest/v1/foxy_diaries?")) data=server.row?[server.row]:[];
    else if(route==="/rest/v1/rpc/foxy_save_diary") {
@@ -23,10 +24,10 @@ function setup() {
     if(body.p_revision!==(server.row?.revision||0)){status=409;data={message:"FOXY_REVISION_CONFLICT"}}
     else {server.writes++;server.row=canonical({payload:body.p_payload,revision:(server.row?.revision||0)+1});data=server.row}
    } else throw Error("Unexpected request "+route);
-   return {ok:status<400,status,text:async()=>JSON.stringify(canonical(data))};
+   return {ok:status<400,status,text:async()=>JSON.stringify(canonical(data)),json:async()=>canonical(data)};
   };
   const api = new Function("localStorage","sessionStorage","document","window","navigator","fetch","setTimeout","clearTimeout","alert","confirm","prompt",
-   source+";return {connectCloud,syncCloud,mergeDiary,sameValue,go,editSet,editSession,openSession,newSession,deleteSession,initial,save,snapshot:()=>JSON.parse(JSON.stringify(db)),status:()=>({syncMessage,syncConflict,syncReady})};")(
+   source+";return {connectCloud,syncCloud,mergeDiary,sameValue,go,editSet,editSession,openSession,newSession,deleteSession,initial,save,cloudLoginPin,snapshot:()=>JSON.parse(JSON.stringify(db)),status:()=>({syncMessage,syncConflict,syncReady,pinUnlocked})};")(
    storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{},activeElement:null},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},nav,fetcher,
    fn=>{timers.push(fn);return timers.length},()=>{},()=>{},()=>true,()=>null);
   storage.setItem("foxy-cloud-session-v2",JSON.stringify({access_token:"test-only",expires_at:Date.now()+999999}));
@@ -83,23 +84,9 @@ test("stale revisions are rejected and a different account cannot upload the loc
  await assert.rejects(a.api.connectCloud(),/другой учётной записи/);
 });
 
-test("recovery callback removes tokens from URL and opens password form",()=>{
- const mem=new Map(),root={innerHTML:""},status={textContent:""};
- const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
- const win={location:{hash:"#access_token=fake-test&refresh_token=fake-refresh&type=recovery",pathname:"/foxy-diary/index.html",search:""},history:{replaceState:()=>{win.location.hash=""}},addEventListener:()=>{}};
- new Function("localStorage","sessionStorage","document","window","navigator","fetch","setTimeout","clearTimeout",source)(storage,storage,{getElementById:id=>id==="app"?root:status,addEventListener:()=>{}},win,{onLine:false},()=>{throw Error("Recovery must not sync before password change")},()=>1,()=>{});
- assert.equal(win.location.hash,"");assert.equal(storage.getItem("foxy-recovery-mode"),"1");assert.ok(root.innerHTML.includes('id="newPassword"'));
-});
 
-test("passwordless form sends one email request and throttles repeated clicks",async()=>{
- const mem=new Map(),nodes=new Map([["app",{innerHTML:""}],["cloudEmail",{value:"Test@Example.invalid"}],["sendLoginLink",{disabled:false,textContent:""}],["cloudStatus",{textContent:""}],["syncBadge",{textContent:""}]]);
- const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];
- const win={location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}},addEventListener:()=>{}};
- const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudSendLoginLink,go};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},win,{onLine:true},async(url,opts)=>{calls.push({url,body:JSON.parse(opts.body)});return {ok:true,text:async()=>"{}"}});
- api.go("data");assert.ok(nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Открыть дневник"));
- await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.ok(calls[0].url.includes("/auth/v1/otp?redirect_to="));assert.deepEqual(calls[0].body,{email:"test@example.invalid",create_user:true});
- await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.equal(nodes.get("sendLoginLink").disabled,false);
-});
+
+
 test("email sign-in clears stale password recovery and strips credentials from URL",()=>{
  const mem=new Map(),root={innerHTML:""},status={textContent:""};
  const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
@@ -117,13 +104,23 @@ test("password login failure keeps the diary and provides recovery guidance",asy
  const before=api.snapshot();await api.cloudLogin({preventDefault(){}});assert.equal(api.snapshot(),before);assert.ok(status.textContent.includes("Не помню пароль"));assert.equal(button.disabled,false);
 });
 
-test("diary is available without login and connected accounts do not see login controls",async()=>{
- const {a}=setup();a.api.go("data");let html=a.nodes.get("app").innerHTML;assert.ok(html.includes("Открыть дневник"));assert.ok(html.includes("<details"));await a.api.connectCloud();a.api.go("data");html=a.nodes.get("app").innerHTML;assert.ok(html.includes("Повторно входить не нужно"));assert.ok(!html.includes('id="cloudPassword"'));assert.ok(!html.includes("Задать или восстановить пароль"));
-});
+
 test("a rejected saved session is refreshed once before asking for login",async()=>{
  const mem=new Map(),storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];let userCalls=0;
  const root={innerHTML:""};
  const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudAuthenticated};")(storage,storage,{getElementById:()=>root,addEventListener:()=>{}},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},{onLine:true},async(url,opts)=>{calls.push(url);let status=200,data;if(url.endsWith("/auth/v1/user")){userCalls++;if(userCalls===1){status=401;data={message:"session expired"}}else data={id:"user-a",email_confirmed_at:"2026-11-14"}}else if(url.includes("grant_type=refresh_token"))data={access_token:"test-renewed",refresh_token:"test-refresh",expires_in:3600};else throw Error("Unexpected request");return {ok:status===200,status,text:async()=>JSON.stringify(data)}});
  storage.setItem("foxy-cloud-session-v2",JSON.stringify({access_token:"test-rejected",refresh_token:"test-refresh",expires_at:Date.now()+999999}));
  const user=await api.cloudAuthenticated();assert.equal(user.id,"user-a");assert.equal(userCalls,2);assert.equal(calls.filter(x=>x.includes("grant_type=refresh_token")).length,1);
+});
+
+test("single PIN gate preserves a leading zero and opens the existing cloud diary",async()=>{
+ const {a,server}=setup();assert.ok(a.nodes.get("app").innerHTML.includes('id="pinCode"'));assert.ok(!a.nodes.get("app").innerHTML.includes('id="cloudEmail"'));
+ a.nodes.get("pinCode").value="00123";await a.api.cloudLoginPin({preventDefault(){}});
+ assert.equal(server.requestedPin,"00123");assert.equal(a.api.status().pinUnlocked,true);assert.equal(a.api.snapshot().sessions.length,5);assert.equal(a.nodes.get("pinCode").value,"");
+});
+test("wrong PIN keeps the gate closed; malformed PIN never reaches the server",async()=>{
+ const {a,server}=setup();a.nodes.get("pinCode").value="12";await a.api.cloudLoginPin({preventDefault(){}});
+ assert.equal(server.requestedPin,undefined);assert.equal(a.api.status().pinUnlocked,false);
+ server.rejectPin=true;a.nodes.get("pinCode").value="11111";await a.api.cloudLoginPin({preventDefault(){}});
+ assert.equal(a.api.status().pinUnlocked,false);assert.equal(a.nodes.get("pinMessage").textContent,"Неверный код");assert.equal(a.nodes.get("pinSubmit").disabled,false);
 });

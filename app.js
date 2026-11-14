@@ -24,6 +24,7 @@ const FUL1=[
 const tmpl=(id,name,list)=>({id,name,exercises:list.map(([num,name,sets])=>({id:id+"-"+num,num,name,sets:sets.map(([weight,reps])=>({weight:String(weight),reps:String(reps)})),hint:""}))});
 const initial=()=>({version:3,programs:[tmpl("ful1","Фул 1",FUL1),tmpl("ful2","Фул 2",FUL2)],schedule:{},sessions:[],measurements:[]});
 let db;try{db=JSON.parse(localStorage.getItem(STORE))||initial()}catch(_){db=initial()}if(!Array.isArray(db.programs)||!Array.isArray(db.sessions)||!Array.isArray(db.measurements)||typeof db.schedule!=="object")db=initial();
+let pinUnlocked=false;
 let page="calendar",day=localDate(new Date()),sessionId=null,shift=0,reportProgramId="ful1",reportIds=null;
 const $=id=>document.getElementById(id);
 const uid=()=>String(Date.now())+"-"+Math.random().toString(36).slice(2,9);
@@ -51,7 +52,7 @@ const paths={
 function lucide(name,size){return '<svg class="lucide-icon" aria-hidden="true" width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'+(paths[name]||paths["dumbbell"])+'</svg>'}
 function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["reports","Отчёты","file-chart-column"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span class="nav-label-full">'+name+'</span><span class="nav-label-mobile">'+({programs:"Планы",metrics:"Замеры"}[id]||name)+'</span></button>').join("")}
 function go(p){page=p;sessionId=null;render()}
-function render(){if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="reports")return reports();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
+function render(){if(!pinUnlocked)return pinGate();if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="reports")return reports();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
 function calendar(){
  const start=addDays(localDate(new Date()),shift*14);let days="";
  for(let i=0;i<14;i++){const d=addDays(start,i),p=program(db.schedule[d]);const done=db.sessions.some(s=>s.date===d&&s.finished);days+='<button class="day '+(day===d?"active":"")+'" onclick="chooseDay(\''+d+'\')"><small>'+new Date(d+"T12:00:00").toLocaleDateString("ru-RU",{weekday:"short"})+'</small><b>'+d.slice(-2)+'</b><span>'+(done?"✓ ":"")+esc(p?.name||"")+'</span></button>';}
@@ -71,6 +72,23 @@ function workout(){
  body+='<div class="card"><h3>Итоги занятия</h3><div class="fields">'+[['duration','Длительность, мин'],['heartRate','Средний пульс'],['heartMax','Макс. пульс'],['activeCalories','Активные ккал'],['totalCalories','Всего ккал']].map(([k,t])=>'<label class="field">'+t+'<input value="'+esc(s[k])+'" inputmode="decimal" oninput="editSession(\''+k+'\',this.value)"></label>').join("")+'</div><div class="fields action"><label class="field">Общая сложность<select onchange="editSession(\'rpe\',this.value)">'+options(["","1","2","3","4","5","6","7","8","9","10"],s.rpe)+'</select></label><label style="flex:1;min-width:180px">Заметки<textarea oninput="editSession(\'comment\',this.value)">'+esc(s.comment)+'</textarea></label></div><div class="row action"><button class="primary" onclick="finishSession()">'+lucide("check")+" "+(s.finished?"Тренировка завершена":"Завершить тренировку")+'</button><button onclick="showReport(\''+s.id+'\')">Экран для скриншота</button><button onclick="deleteSession(\''+s.id+'\')">Удалить</button></div></div>';
  layout("Тренировка","Записывай результаты прямо между подходами",body)
 }
+
+function pinGate(){
+ $("app").innerHTML='<main class="pin-screen"><section class="pin-panel"><img src="icon.svg" alt="" width="56" height="56"><h1>ALISA</h1><p class="muted">Твой дневник тренировок</p><form onsubmit="cloudLoginPin(event)"><label for="pinCode">Код входа</label><input id="pinCode" type="password" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="current-password" required aria-describedby="pinMessage"><button id="pinSubmit" class="primary" type="submit">Открыть дневник</button><p id="pinMessage" class="pin-message" role="status">Введи свой код из 5 цифр. На телефоне и компьютере открываются одни и те же тренировки.</p></form></section></main>'
+}
+async function cloudLoginPin(event){
+ event.preventDefault();const input=$("pinCode"),button=$("pinSubmit"),message=$("pinMessage");
+ const pin=input.value;if(!/^[0-9]{5}$/.test(pin)){message.textContent="Введи 5 цифр кода";return}
+ button.disabled=true;button.textContent="Открываю…";message.textContent="";
+ try{
+  const res=await fetch(CLOUD_CONFIG.url+"/functions/v1/alisa-pin-login",{method:"POST",headers:{apikey:CLOUD_CONFIG.key,"Content-Type":"application/json"},body:JSON.stringify({pin})});
+  const data=await res.json();if(!res.ok)throw Error(data.message||"Не удалось войти");
+  if(!data.access_token||!data.refresh_token)throw Error("Не удалось открыть дневник");
+  storeCloudSession(data);sessionStorage.removeItem("foxy-recovery-mode");input.value="";page="history";await connectCloud()
+ }catch(e){message.textContent=e.message==="Failed to fetch"?"Проверь интернет и попробуй ещё раз":e.message;input.value="";input.focus?.()}
+ finally{button.disabled=false;button.textContent="Открыть дневник"}
+}
+
 function options(arr,sel){return arr.map(x=>'<option '+(x===String(sel)?"selected":"")+' value="'+esc(x)+'">'+(x||"Не указано")+'</option>').join("")}
 function editSet(e,i,k,v){ses(sessionId).exercises[e].sets[i][k]=v;save();if(k==="done"){const s=ses(sessionId),el=$("workoutProgress");if(el)el.textContent=s.exercises.reduce((n,e)=>n+e.sets.filter(x=>x.done).length,0)+" из "+s.exercises.reduce((n,e)=>n+e.sets.length,0)+" подходов выполнено"}}
 function editExercise(e,k,v){ses(sessionId).exercises[e][k]=v;save()}
@@ -129,10 +147,7 @@ function deleteMetric(id){if(!confirm("Удалить измерение?"))retu
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function backup(){download("alisa-backup-"+localDate(new Date())+".json",JSON.stringify(db,null,2),"application/json")}
 function dataPage(){
- if(sessionStorage.getItem("foxy-recovery-mode")==="1"){layout("Новый пароль","Сохрани пароль один раз",'<div class="card"><form onsubmit="cloudSetNewPassword(event)"><label>Новый пароль<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="action">Повтори пароль<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label><button class="primary action" type="submit">Сохранить пароль</button><p id="cloudStatus" class="note" role="status">Не менее 8 символов.</p></form><button class="action" onclick="cloudCancelRecovery()">Открыть дневник без смены пароля</button></div>');return}
- const access=syncReady?'<p>Сохранение в базе подключено. Повторно входить не нужно.</p>':'<p>Можно сразу записывать тренировки. Они сохраняются на этом телефоне.</p><details class="action"><summary>Подключить базу или открыть записи с другого телефона</summary><p class="muted">Для переноса записей нужен вход в свою учётную запись.</p><form onsubmit="cloudLogin(event)"><label>Логин — email<input id="cloudEmail" type="email" autocomplete="username" required></label><label class="action">Пароль<input id="cloudPassword" type="password" autocomplete="current-password" required></label><button id="passwordLogin" class="primary action" type="submit">Войти</button></form><button class="action" type="button" onclick="cloudForgotPassword()">Не помню пароль</button><details class="action"><summary>Получить ссылку для входа</summary><p>Укажи email в поле логина.</p><button id="sendLoginLink" onclick="cloudSendLoginLink()">Отправить письмо</button></details></details>';
- const conflict='<div id="syncConflict" '+(syncConflict?'':'hidden')+' class="note"><p>Одна запись изменена на двух устройствах. Выбери, какие изменения оставить. Перед выбором скачается резервная копия.</p><div class="row"><button onclick="cloudResolve(\'local\')">С этого телефона</button><button onclick="cloudResolve(\'remote\')">Из базы</button></div></div>';
- layout("Мой дневник","Тренировки доступны без входа",'<div class="card"><h2>Можно тренироваться</h2><p>'+db.sessions.length+' тренировок · '+db.measurements.length+' показателей на этом телефоне</p><button class="primary action" onclick="go(\'calendar\')">Открыть дневник</button>'+access+'<p id="cloudStatus" class="note" role="status">'+esc(syncLabel())+'</p>'+conflict+'</div><details class="card"><summary>Резервные копии и перенос</summary><p class="action">Копия содержит тренировки, программы, расписание и показатели.</p><button onclick="backup()">Скачать копию</button><hr class="sep"><label>Добавить старую историю<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label><label class="action">Восстановить дневник из копии<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><p class="muted">Восстановление заменяет записи на этом устройстве.</p><hr class="sep"><label>Импорт показателей CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div>'+(syncReady?'<button class="action" onclick="cloudLogout()">Выйти из облачной учётной записи</button>':'')+'</details>')
+ layout("Мой дневник","Записи на телефоне и компьютере",'<div class="card"><h2>Дневник подключён</h2><p>'+db.sessions.length+' тренировок · '+db.measurements.length+' показателей</p><p id="cloudStatus" class="note" role="status">'+esc(syncLabel())+'</p><button class="primary" onclick="go(\'calendar\')">Открыть календарь</button><div id="syncConflict" '+(syncConflict?'':'hidden')+' class="note"><p>Запись изменена на двух устройствах. Выбери версию; перед выбором скачается копия.</p><button onclick="cloudResolve(\'local\')">С этого устройства</button><button onclick="cloudResolve(\'remote\')">Из базы</button></div></div><details class="card"><summary>Копии и перенос</summary><button class="action" onclick="backup()">Скачать копию дневника</button><label class="action">Добавить старую историю<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label><label class="action">Восстановить копию<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><label class="action">Импорт показателей CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div><button class="action" onclick="cloudLogout()">Выйти на этом устройстве</button></details>')
 }
 
 async function importHistory(input){
@@ -230,7 +245,7 @@ async function connectCloud(){
  syncUser=u.id;
  syncHistory=await cloudRequest("/rest/v1/rpc/foxy_claim_history",{method:"POST",body:"{}"});
  if(syncHistory&&(!Array.isArray(syncHistory.sessions)||!Array.isArray(syncHistory.measurements)))throw Error("Неверный формат старой истории");
- syncReady=true;render();await syncCloud()
+ pinUnlocked=true;syncReady=true;render();await syncCloud()
 }
 
 async function cloudLogin(event){
@@ -261,7 +276,7 @@ async function cloudSendLoginLink(event){
  finally{if(button){button.disabled=false;button.textContent="Отправить письмо"}}
 }
 async function cloudLogout(){
- clearTimeout(syncTimer);syncReady=false;syncUser=null;
+ clearTimeout(syncTimer);syncReady=false;syncUser=null;pinUnlocked=false;
  try{await cloudRequest("/auth/v1/logout",{method:"POST"})}catch(_){}
  localStorage.removeItem(CLOUD_SESSION_KEY);sessionStorage.removeItem("foxy-cloud-session-v1");syncConflict=false;cloudInfo("Выполнен выход · локальные записи сохранены");render()
 }
