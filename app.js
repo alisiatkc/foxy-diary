@@ -49,7 +49,7 @@ const paths={
 };
 function lucide(name,size){return '<svg class="lucide-icon" aria-hidden="true" width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'+(paths[name]||paths["dumbbell"])+'</svg>'}
 function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["reports","Отчёты","file-chart-column"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span>'+name+'</span></button>').join("")}
-function go(p){page=p;sessionId=null;render()}
+function go(p){page=p;sessionId=null;render();if(p==="data"){const c=cloudConfig();if($("cloudUrl"))$("cloudUrl").value=c.url||"";if($("cloudKey"))$("cloudKey").value=c.key||""}}
 function render(){if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="reports")return reports();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
 function calendar(){
  const start=addDays(localDate(new Date()),shift*14);let days="";
@@ -125,7 +125,7 @@ function addMetric(e){e.preventDefault();db.measurements.push({id:uid(),date:$("
 function deleteMetric(id){if(!confirm("Удалить измерение?"))return;db.measurements=db.measurements.filter(x=>x.id!==id);save();render()}
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function backup(){download("foxy-backup-"+localDate(new Date())+".json",JSON.stringify(db,null,2),"application/json")}
-function dataPage(){layout("Данные и импорт","Сохраняй резервные копии и переноси измерения",'<div class="card"><h2>Резервная копия</h2><p>Все тренировки, расписание, программы и показатели сохраняются в JSON.</p><div class="row"><button class="primary" onclick="backup()">Скачать JSON</button></div><hr class="sep"/><label>Восстановить JSON FOXY<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><p class="muted">При восстановлении текущие данные заменяются. Перед импортом сделай резервную копию.</p></div><div class="card"><h2>Импорт исторических тренировок</h2><p>Выбери файл <code>FOXY_private_history_2026-11.json</code>. Он содержит 5 тренировок (Фул 1 и Фул 2) и показатели Apple Watch. Записи добавятся к существующим, без перезаписи.</p><label>Файл истории<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label><p class="muted">Личные данные из этого файла не передаются в GitHub.</p></div><div class="card"><h2>Импорт CSV</h2><p>Файл с измерениями, например из подготовленной таблицы. Колонки: <code>date,type,value,source,note</code>.</p><label>Выбрать CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div></div><div class="card"><h3>Apple Watch и Flo</h3><p>Пока данные Apple Watch (пульс, время, калории) вводятся вручную в карточку тренировки, а даты и симптомы из Flo — в «Показатели». Прямой связи с Apple Health и Flo ещё нет.</p></div>')}
+function dataPage(){layout("Данные и импорт","Сохраняй резервные копии и переноси измерения",'<div class="card"><h2>Облако · Supabase</h2><p class="muted">Облачное сохранение включается только после создания проекта и применения защищённой схемы базы данных. До настройки все данные остаются на устройстве.</p><div class="fields"><label style="flex:1;min-width:170px">Project URL<input id="cloudUrl" placeholder="https://...supabase.co" autocomplete="off"></label><label style="flex:1;min-width:170px">Publishable / anon key<input id="cloudKey" placeholder="sb_publishable_... / eyJ..." autocomplete="off"></label></div><div class="action"><button onclick="saveCloudConfig()">Сохранить настройки</button></div><hr class="sep"><div class="fields"><label style="flex:1;min-width:150px">Электронная почта<input id="cloudEmail" type="email" autocomplete="username"></label><label style="flex:1;min-width:150px">Пароль<input id="cloudPassword" type="password" autocomplete="current-password"></label></div><div class="row action"><button onclick="cloudSignup()">Регистрация</button><button onclick="cloudLogin()">Войти</button><button onclick="cloudLogout()">Выйти</button></div><p id="cloudStatus" class="muted">Данные пока только на этом устройстве.</p><div class="row action"><button class="primary" onclick="cloudPush()">Сохранить копию в облаке</button><button onclick="cloudPull()">Загрузить из облака</button></div><p class="muted">Синхронизация пока ручная: сохранение в облако перезаписывает предыдущую облачную копию; загрузка из облака заменяет локальную запись после создания резервной копии.</p></div>'+'<div class="card"><h2>Резервная копия</h2><p>Все тренировки, расписание, программы и показатели сохраняются в JSON.</p><div class="row"><button class="primary" onclick="backup()">Скачать JSON</button></div><hr class="sep"/><label>Восстановить JSON FOXY<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><p class="muted">При восстановлении текущие данные заменяются. Перед импортом сделай резервную копию.</p></div><div class="card"><h2>Импорт исторических тренировок</h2><p>Выбери файл <code>FOXY_private_history_2026-11.json</code>. Он содержит 5 тренировок (Фул 1 и Фул 2) и показатели Apple Watch. Записи добавятся к существующим, без перезаписи.</p><label>Файл истории<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label><p class="muted">Личные данные из этого файла не передаются в GitHub.</p></div><div class="card"><h2>Импорт CSV</h2><p>Файл с измерениями, например из подготовленной таблицы. Колонки: <code>date,type,value,source,note</code>.</p><label>Выбрать CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div></div><div class="card"><h3>Apple Watch и Flo</h3><p>Пока данные Apple Watch (пульс, время, калории) вводятся вручную в карточку тренировки, а даты и симптомы из Flo — в «Показатели». Прямой связи с Apple Health и Flo ещё нет.</p></div>')}
 
 async function importHistory(input){
  const file=input.files?.[0];if(!file)return;
@@ -145,4 +145,82 @@ async function importHistory(input){
 async function restoreBackup(input){const file=input.files[0];if(!file)return;try{const d=JSON.parse(await file.text());if(!Array.isArray(d.programs)||!Array.isArray(d.sessions)||!Array.isArray(d.measurements)||typeof d.schedule!=="object")throw Error("Неверный формат FOXY");if(!confirm("Заменить все записи из этого браузера импортированными?"))return;db=d;save();render();alert("Восстановлено")}catch(e){alert("Импорт не выполнен: "+e.message)}}
 function csvRows(text){const out=[];let row=[],val="",quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){val+='"';i++}else quoted=!quoted}else if(c===","&&!quoted){row.push(val);val=""}else if((c==="\n"||c==="\r")&&!quoted){if(c==="\r"&&text[i+1]==="\n")i++;row.push(val);if(row.some(x=>x.trim()))out.push(row);row=[];val=""}else val+=c}row.push(val);if(row.some(x=>x.trim()))out.push(row);return out}
 async function importCsv(input){const file=input.files[0];if(!file)return;try{const rows=csvRows((await file.text()).replace(/^\uFEFF/,""));const header=rows.shift().map(x=>x.trim().toLowerCase());const required=["date","type","value","source","note"];if(required.some(k=>!header.includes(k)))throw Error("Нужны колонки: "+required.join(", "));const valid=rows.map(r=>Object.fromEntries(required.map(k=>[k,(r[header.indexOf(k)]||"").trim()]))).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&r.type&&r.value);$("preview").innerHTML='<p>Найдено корректных записей: '+valid.length+' из '+rows.length+'. Добавить в дневник?</p><button class="primary" id="confirmCsv">Импортировать</button>';$("confirmCsv").onclick=()=>{db.measurements.push(...valid.map(r=>({...r,id:uid()})));save();render();alert("Добавлено "+valid.length+" записей")}}catch(e){alert("Ошибка CSV: "+e.message)}}
+
+const CLOUD_CONFIG_KEY="foxy-cloud-config-v1",CLOUD_SESSION_KEY="foxy-cloud-session-v1";
+const cloudConfig=()=>{try{return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)||"{}")}catch(_){return {}}};
+const cloudSession=()=>{try{return JSON.parse(sessionStorage.getItem(CLOUD_SESSION_KEY)||"{}")}catch(_){return {}}};
+function cloudInfo(message){const el=$("cloudStatus");if(el)el.textContent=message}
+function validCloudConfig(){
+ const c=cloudConfig();
+ if(!c.url||!c.key)throw Error("Сначала укажи URL проекта и publishable/anon key.");
+ const u=new URL(c.url);if(u.protocol!=="https:"||!u.hostname.endsWith(".supabase.co"))throw Error("Ожидается HTTPS-адрес Supabase.");
+ return c
+}
+function saveCloudConfig(){
+ try{
+  const u=$("cloudUrl").value.trim().replace(/\/+$/,""),key=$("cloudKey").value.trim();
+  if(!u||!key)throw Error("Укажи URL проекта и публичный API-ключ.");
+  const parsed=new URL(u);if(parsed.protocol!=="https:"||!parsed.hostname.endsWith(".supabase.co"))throw Error("Неверный URL Supabase.");
+  localStorage.setItem(CLOUD_CONFIG_KEY,JSON.stringify({url:u,key}));cloudInfo("Настройки сохранены только в этом браузере. Можно войти в учётную запись Supabase.")
+ }catch(e){alert(e.message)}
+}
+async function cloudRequest(path,opts={}){
+ const c=validCloudConfig(),sess=cloudSession();
+ const headers={apikey:c.key,"Content-Type":"application/json",...(sess.access_token?{Authorization:"Bearer "+sess.access_token}:{}) ,...(opts.headers||{})};
+ const res=await fetch(c.url+path,{...opts,headers});
+ const body=await res.text();let data;try{data=body?JSON.parse(body):null}catch(_){data=body}
+ if(!res.ok)throw Error(typeof data==="object"?(data?.msg||data?.message||data?.error_description||data?.error||("HTTP "+res.status)):("HTTP "+res.status));
+ return data
+}
+async function cloudSignup(){
+ try{
+  const email=$("cloudEmail").value.trim(),password=$("cloudPassword").value;
+  if(!email||!password)throw Error("Укажи почту и пароль.");
+  const r=await cloudRequest("/auth/v1/signup",{method:"POST",body:JSON.stringify({email,password})});
+  cloudInfo(r?.session?"Аккаунт создан. Теперь войди.":"Регистрация отправлена. Если подтверждение email включено, проверь почту, затем войди.")
+ }catch(e){cloudInfo("Ошибка: "+e.message)}
+}
+async function cloudLogin(){
+ try{
+  const email=$("cloudEmail").value.trim(),password=$("cloudPassword").value;
+  if(!email||!password)throw Error("Укажи почту и пароль.");
+  const r=await cloudRequest("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email,password})});
+  if(!r?.access_token)throw Error("Токен входа не получен.");
+  sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify({access_token:r.access_token,refresh_token:r.refresh_token,expires_at:Date.now()+Number(r.expires_in||3600)*1000}));
+  $("cloudPassword").value="";cloudInfo("Выполнен вход. Теперь можно вручную сохранять и загружать облачную копию.")
+ }catch(e){cloudInfo("Ошибка входа: "+e.message)}
+}
+function cloudLogout(){sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudInfo("Выполнен выход из облачной учётной записи.")}
+async function cloudAuthenticated(){
+ const s=cloudSession();if(!s.access_token)throw Error("Сначала войди в учётную запись.");
+ if(s.expires_at && Date.now()>s.expires_at-60000){
+  const c=validCloudConfig();
+  const r=await fetch(c.url+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{"apikey":c.key,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:s.refresh_token})});
+  const data=await r.json();if(!r.ok||!data.access_token)throw Error("Сессия истекла. Войди снова.");
+  sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Date.now()+Number(data.expires_in||3600)*1000}))
+ }
+ const u=await cloudRequest("/auth/v1/user");
+ if(!u?.id)throw Error("Не удалось подтвердить пользователя.");
+ return u.id
+}
+async function cloudPush(){
+ try{
+  const id=await cloudAuthenticated();
+  if(!confirm("Отправить все тренировки и личные измерения в ТВОЙ Supabase? Предыдущая облачная копия будет заменена. Продолжить?"))return;
+  await cloudRequest("/rest/v1/foxy_entries?on_conflict=user_id,category,entry_id",{method:"POST",headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{user_id:id,category:"settings",entry_id:"snapshot",payload:db}])});
+  cloudInfo("Копия сохранена в облаке.")
+ }catch(e){cloudInfo("Не удалось сохранить: "+e.message)}
+}
+async function cloudPull(){
+ try{
+  await cloudAuthenticated();
+  const items=await cloudRequest("/rest/v1/foxy_entries?category=eq.settings&entry_id=eq.snapshot&select=payload,updated_at");
+  const next=items?.[0]?.payload;
+  if(!next||!Array.isArray(next.sessions)||!Array.isArray(next.programs)||!Array.isArray(next.measurements)||typeof next.schedule!=="object")throw Error("Облачная копия не найдена или имеет неверный формат.");
+  if(!confirm("Заменить локальные данные облачной копией от "+(items[0].updated_at||"неизвестной даты")+"? FOXY автоматически скачает резервную копию текущих данных."))return;
+  backup();db=next;save();render();alert("Загружено из облака. Локальная резервная копия скачана.")
+ }catch(e){cloudInfo("Не удалось загрузить: "+e.message)}
+}
+
 render();
+if(page==="data"){const c=cloudConfig();if($("cloudUrl"))$("cloudUrl").value=c.url||"";if($("cloudKey"))$("cloudKey").value=c.key||""}
