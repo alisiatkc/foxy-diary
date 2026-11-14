@@ -124,3 +124,14 @@ test("wrong PIN keeps the gate closed; malformed PIN never reaches the server",a
  server.rejectPin=true;a.nodes.get("pinCode").value="11111";await a.api.cloudLoginPin({preventDefault(){}});
  assert.equal(a.api.status().pinUnlocked,false);assert.equal(a.nodes.get("pinMessage").textContent,"Неверный код");assert.equal(a.nodes.get("pinSubmit").disabled,false);
 });
+
+test("cycle marks save by date and distinguish a personal mark from a forecast",()=>{
+ const mem=new Map(),nodes=new Map([["app",{innerHTML:""}],["cycleDate",{value:"2026-11-14"}],["cycleType",{value:"pms"}],["cycleSource",{value:"reported"}],["cycleNote",{value:"Самочувствие"}]]);
+ const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
+ const api=new Function("localStorage","sessionStorage","document","window","navigator",source+";return {addCycleEvent,snapshot:()=>JSON.parse(JSON.stringify(db))};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},{onLine:false});
+ const event={preventDefault(){}};api.addCycleEvent(event);api.addCycleEvent(event);
+ assert.equal(api.snapshot().measurements.length,1);assert.equal(api.snapshot().measurements[0].type,"pms");assert.equal(api.snapshot().measurements[0].certainty,"reported");
+ nodes.get("cycleType").value="ovulation";nodes.get("cycleSource").value="flo_estimate";api.addCycleEvent(event);
+ const records=api.snapshot().measurements;assert.equal(records.length,2);assert.equal(records[1].certainty,"estimated");assert.equal(records[1].source,"Flo · прогноз");
+ assert.equal(JSON.parse(mem.get("foxy-diary-v03")).measurements.length,2);
+});
