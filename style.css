@@ -57,3 +57,8 @@ button.primary{background:var(--accent-strong);border-color:var(--accent-strong)
  .set:has(.set-done input:checked){background:var(--accent-pale);border-color:#d9b2c1}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button,input,textarea,select{transition:none}button:active{transform:none}}
+
+.workout-summary{display:flex;gap:8px 18px;flex-wrap:wrap;justify-content:space-between;margin:16px 0}
+.workout-summary span{font-size:12px;color:var(--muted)}
+.workout-exercise button .lucide-icon{width:16px;height:16px}
+@media(max-width:780px){.workout-summary{display:grid;gap:4px}.set:not(.sethead)>button .lucide-icon{width:18px;height:18px}}
