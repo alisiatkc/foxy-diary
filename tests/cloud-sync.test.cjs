@@ -90,3 +90,21 @@ test("recovery callback removes tokens from URL and opens password form",()=>{
  new Function("localStorage","sessionStorage","document","window","navigator","fetch","setTimeout","clearTimeout",source)(storage,storage,{getElementById:id=>id==="app"?root:status,addEventListener:()=>{}},win,{onLine:false},()=>{throw Error("Recovery must not sync before password change")},()=>1,()=>{});
  assert.equal(win.location.hash,"");assert.equal(storage.getItem("foxy-recovery-mode"),"1");assert.ok(root.innerHTML.includes('id="newPassword"'));
 });
+
+test("passwordless form sends one email request and throttles repeated clicks",async()=>{
+ const mem=new Map(),nodes=new Map([["app",{innerHTML:""}],["cloudEmail",{value:"Test@Example.invalid"}],["sendLoginLink",{disabled:false,textContent:""}],["cloudStatus",{textContent:""}],["syncBadge",{textContent:""}]]);
+ const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];
+ const win={location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}},addEventListener:()=>{}};
+ const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudSendLoginLink,go};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},win,{onLine:true},async(url,opts)=>{calls.push({url,body:JSON.parse(opts.body)});return {ok:true,text:async()=>"{}"}});
+ api.go("data");assert.ok(!nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Получить письмо для входа"));
+ await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.ok(calls[0].url.includes("/auth/v1/otp?redirect_to="));assert.deepEqual(calls[0].body,{email:"test@example.invalid",create_user:true});
+ await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.equal(nodes.get("sendLoginLink").disabled,false);
+});
+test("email sign-in clears stale password recovery and strips credentials from URL",()=>{
+ const mem=new Map(),root={innerHTML:""},status={textContent:""};
+ const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
+ const win={location:{hash:"",pathname:"/foxy-diary/index.html",search:""},history:{replaceState:()=>{win.location.hash=""}},addEventListener:()=>{}};
+ const api=new Function("localStorage","sessionStorage","document","window","navigator",source+";return {consumeAuthCallback,getPage:()=>page};")(storage,storage,{getElementById:id=>id==="app"?root:status,addEventListener:()=>{}},win,{onLine:false});
+ storage.setItem("foxy-recovery-mode","1");win.location.hash="#access_token=fake-test&refresh_token=fake-refresh&type=magiclink";
+ assert.equal(api.consumeAuthCallback(),false);assert.equal(win.location.hash,"");assert.equal(storage.getItem("foxy-recovery-mode"),null);assert.equal(api.getPage(),"history");
+});
