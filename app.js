@@ -34,7 +34,7 @@ function localDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart
 function addDays(date,n){const d=new Date(date+"T12:00:00");d.setDate(d.getDate()+n);return localDate(d)}
 function program(id){return db.programs.find(p=>p.id===id)}
 function ses(id){return db.sessions.find(s=>s.id===id)}
-function previous(s,eid){return db.sessions.filter(x=>x.programId===s.programId&&x.id!==s.id&&x.date<s.date).sort((a,b)=>b.date.localeCompare(a.date))[0]?.exercises.find(e=>e.id===eid)}
+function previous(s,eid){return db.sessions.filter(x=>x.finished&&x.programId===s.programId&&x.id!==s.id&&x.date<s.date).sort((a,b)=>b.date.localeCompare(a.date))[0]?.exercises.find(e=>e.id===eid)}
 function layout(title,subtitle,content){$("app").innerHTML='<div class="shell"><aside class="side"><div class="brand"><span class="brand-mark"><img src="icon.svg" alt="" width="32" height="32"></span><span>FOXY<small>Training journal</small></span></div><div class="nav">'+navButtons()+'</div><div class="note">Данные пока хранятся на этом устройстве. Сохраняй резервные копии.</div></aside><main class="main"><header class="app-header"><div class="eyebrow">FOXY / Личный дневник</div><h1>'+esc(title)+'</h1><p class="lead">'+esc(subtitle)+'</p></header>'+content+'</main></div><nav class="bottom">'+navButtons()+'</nav>'}
 const paths={
 "calendar-days":'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
