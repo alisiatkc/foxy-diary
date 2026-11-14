@@ -80,3 +80,8 @@ textarea{min-height:96px;resize:vertical}
 .nav-label-mobile{display:none}
 @media(max-width:780px){.bottom .nav-label-full{display:none}.bottom .nav-label-mobile{display:block}.bottom button{gap:4px;font-size:10px}}
 @media(max-width:380px){.bottom{padding-left:4px;padding-right:4px}.bottom button{font-size:9px}}
+
+.sync-status{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 18px;overflow-wrap:anywhere}
+#cloudStatus{margin:18px 0}
+#syncConflict{border:1px solid #d9b2c1;border-radius:12px;padding:14px;background:var(--accent-pale)}
+[hidden]{display:none!important}
