@@ -96,7 +96,7 @@ test("passwordless form sends one email request and throttles repeated clicks",a
  const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];
  const win={location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}},addEventListener:()=>{}};
  const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudSendLoginLink,go};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},win,{onLine:true},async(url,opts)=>{calls.push({url,body:JSON.parse(opts.body)});return {ok:true,text:async()=>"{}"}});
- api.go("data");assert.ok(nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Получить письмо для входа"));
+ api.go("data");assert.ok(nodes.get("app").innerHTML.includes('id="cloudPassword"'));assert.ok(nodes.get("app").innerHTML.includes("Открыть дневник"));
  await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.ok(calls[0].url.includes("/auth/v1/otp?redirect_to="));assert.deepEqual(calls[0].body,{email:"test@example.invalid",create_user:true});
  await api.cloudSendLoginLink({preventDefault(){}});assert.equal(calls.length,1);assert.equal(nodes.get("sendLoginLink").disabled,false);
 });
@@ -114,5 +114,16 @@ test("password login failure keeps the diary and provides recovery guidance",asy
  const nodes=new Map([["app",root],["cloudStatus",status],["syncBadge",status],["cloudEmail",{value:"test@example.invalid"}],["cloudPassword",{value:"test-only-fake"}],["passwordLogin",button]]);
  const storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
  const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudLogin,snapshot:()=>JSON.stringify(db)};")(storage,storage,{getElementById:id=>nodes.get(id)||null,addEventListener:()=>{}},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},{onLine:false},async()=>({ok:false,status:400,text:async()=>JSON.stringify({message:"Invalid login credentials"})}));
- const before=api.snapshot();await api.cloudLogin({preventDefault(){}});assert.equal(api.snapshot(),before);assert.ok(status.textContent.includes("Задать или восстановить пароль"));assert.equal(button.disabled,false);
+ const before=api.snapshot();await api.cloudLogin({preventDefault(){}});assert.equal(api.snapshot(),before);assert.ok(status.textContent.includes("Не помню пароль"));assert.equal(button.disabled,false);
+});
+
+test("diary is available without login and connected accounts do not see login controls",async()=>{
+ const {a}=setup();a.api.go("data");let html=a.nodes.get("app").innerHTML;assert.ok(html.includes("Открыть дневник"));assert.ok(html.includes("<details"));await a.api.connectCloud();a.api.go("data");html=a.nodes.get("app").innerHTML;assert.ok(html.includes("Повторно входить не нужно"));assert.ok(!html.includes('id="cloudPassword"'));assert.ok(!html.includes("Задать или восстановить пароль"));
+});
+test("a rejected saved session is refreshed once before asking for login",async()=>{
+ const mem=new Map(),storage={getItem:k=>mem.get(k)||null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)},calls=[];let userCalls=0;
+ const root={innerHTML:""};
+ const api=new Function("localStorage","sessionStorage","document","window","navigator","fetch",source+";return {cloudAuthenticated};")(storage,storage,{getElementById:()=>root,addEventListener:()=>{}},{addEventListener:()=>{},location:{hash:"",pathname:"/",search:""},history:{replaceState:()=>{}}},{onLine:true},async(url,opts)=>{calls.push(url);let status=200,data;if(url.endsWith("/auth/v1/user")){userCalls++;if(userCalls===1){status=401;data={message:"session expired"}}else data={id:"user-a",email_confirmed_at:"2026-11-14"}}else if(url.includes("grant_type=refresh_token"))data={access_token:"test-renewed",refresh_token:"test-refresh",expires_in:3600};else throw Error("Unexpected request");return {ok:status===200,status,text:async()=>JSON.stringify(data)}});
+ storage.setItem("foxy-cloud-session-v2",JSON.stringify({access_token:"test-rejected",refresh_token:"test-refresh",expires_at:Date.now()+999999}));
+ const user=await api.cloudAuthenticated();assert.equal(user.id,"user-a");assert.equal(userCalls,2);assert.equal(calls.filter(x=>x.includes("grant_type=refresh_token")).length,1);
 });

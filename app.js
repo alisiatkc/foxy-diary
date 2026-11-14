@@ -128,7 +128,12 @@ function addMetric(e){e.preventDefault();db.measurements.push({id:uid(),date:$("
 function deleteMetric(id){if(!confirm("Удалить измерение?"))return;db.measurements=db.measurements.filter(x=>x.id!==id);save();render()}
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function backup(){download("alisa-backup-"+localDate(new Date())+".json",JSON.stringify(db,null,2),"application/json")}
-function dataPage(){if(sessionStorage.getItem("foxy-recovery-mode")==="1"){layout("Новый пароль","Задай новый пароль для своего дневника",'<div class="card"><form onsubmit="cloudSetNewPassword(event)"><label>Новый пароль<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="action">Повтори пароль<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label><button class="primary action" type="submit">Сохранить новый пароль</button><button class="action" type="button" onclick="cloudCancelRecovery()">Войти по письму без пароля</button><p id="cloudStatus" class="note" role="status">Не менее 8 символов. Тренировки и показатели сохранятся.</p></form></div>');return}layout("Данные и синхронизация","Твой дневник на всех устройствах",'<div class="card"><h2>Учётная запись ALISA</h2><p class="muted">Войди со своим email и паролем. После входа учётная запись останется на этом устройстве.</p><form onsubmit="cloudLogin(event)"><div class="fields"><label style="flex:1;min-width:150px">Логин — email<input id="cloudEmail" type="email" autocomplete="username" required placeholder="you@example.com"></label><label style="flex:1;min-width:150px">Пароль<input id="cloudPassword" type="password" autocomplete="current-password" required></label></div><div class="row action"><button id="passwordLogin" class="primary" type="submit">Войти</button><button type="button" onclick="cloudForgotPassword()">Задать или восстановить пароль</button><button type="button" onclick="cloudLogout()">Выйти</button></div></form><details class="action"><summary>Войти по письму без пароля</summary><p class="muted">Укажи email в поле логина и получи одноразовую ссылку.</p><button id="sendLoginLink" type="button" onclick="cloudSendLoginLink()">Получить письмо для входа</button></details><p id="cloudStatus" class="note" role="status">'+esc(syncLabel())+'</p><button onclick="cloudPush()">Синхронизировать</button><div id="syncConflict" '+(syncConflict?'':'hidden')+' class="action"><p>Если одна запись изменена на двух устройствах, выбери, какие изменения оставить. Перед выбором скачается резервная копия.</p><div class="row"><button onclick="cloudResolve(\'local\')">Оставить изменения устройства</button><button onclick="cloudResolve(\'remote\')">Оставить изменения из облака</button></div></div></div><div class="card"><h2>Старая история</h2><p>Подготовленная история добавится автоматически после первого входа с подтверждённым email владельца. Уже существующие записи сохранятся. Повторный вход не создаёт дубликаты.</p><label>Добавить другой файл истории<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label></div><div class="card"><h2>Резервная копия</h2><p>Скачай все тренировки, программы, расписание и показатели.</p><button onclick="backup()">Скачать JSON</button><hr class="sep"><label>Восстановить резервную копию<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><p class="muted">Восстановление заменяет локальный дневник. При включённой синхронизации изменения отправятся в твою базу.</p></div><div class="card"><h2>Импорт показателей</h2><p>CSV с колонками <code>date,type,value,source,note</code>.</p><label>Выбрать CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div></div><div class="card"><h3>Apple Watch и Flo</h3><p>Пульс, время и калории вводятся в итогах тренировки; измерения и цикл — в «Показатели». Прямой интеграции с Apple Health и Flo нет.</p></div>')}
+function dataPage(){
+ if(sessionStorage.getItem("foxy-recovery-mode")==="1"){layout("Новый пароль","Сохрани пароль один раз",'<div class="card"><form onsubmit="cloudSetNewPassword(event)"><label>Новый пароль<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="action">Повтори пароль<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label><button class="primary action" type="submit">Сохранить пароль</button><p id="cloudStatus" class="note" role="status">Не менее 8 символов.</p></form><button class="action" onclick="cloudCancelRecovery()">Открыть дневник без смены пароля</button></div>');return}
+ const access=syncReady?'<p>Сохранение в базе подключено. Повторно входить не нужно.</p>':'<p>Можно сразу записывать тренировки. Они сохраняются на этом телефоне.</p><details class="action"><summary>Подключить базу или открыть записи с другого телефона</summary><p class="muted">Для переноса записей нужен вход в свою учётную запись.</p><form onsubmit="cloudLogin(event)"><label>Логин — email<input id="cloudEmail" type="email" autocomplete="username" required></label><label class="action">Пароль<input id="cloudPassword" type="password" autocomplete="current-password" required></label><button id="passwordLogin" class="primary action" type="submit">Войти</button></form><button class="action" type="button" onclick="cloudForgotPassword()">Не помню пароль</button><details class="action"><summary>Получить ссылку для входа</summary><p>Укажи email в поле логина.</p><button id="sendLoginLink" onclick="cloudSendLoginLink()">Отправить письмо</button></details></details>';
+ const conflict='<div id="syncConflict" '+(syncConflict?'':'hidden')+' class="note"><p>Одна запись изменена на двух устройствах. Выбери, какие изменения оставить. Перед выбором скачается резервная копия.</p><div class="row"><button onclick="cloudResolve(\'local\')">С этого телефона</button><button onclick="cloudResolve(\'remote\')">Из базы</button></div></div>';
+ layout("Мой дневник","Тренировки доступны без входа",'<div class="card"><h2>Можно тренироваться</h2><p>'+db.sessions.length+' тренировок · '+db.measurements.length+' показателей на этом телефоне</p><button class="primary action" onclick="go(\'calendar\')">Открыть дневник</button>'+access+'<p id="cloudStatus" class="note" role="status">'+esc(syncLabel())+'</p>'+conflict+'</div><details class="card"><summary>Резервные копии и перенос</summary><p class="action">Копия содержит тренировки, программы, расписание и показатели.</p><button onclick="backup()">Скачать копию</button><hr class="sep"><label>Добавить старую историю<input type="file" accept=".json,application/json" onchange="importHistory(this)"></label><label class="action">Восстановить дневник из копии<input type="file" accept=".json,application/json" onchange="restoreBackup(this)"></label><p class="muted">Восстановление заменяет записи на этом устройстве.</p><hr class="sep"><label>Импорт показателей CSV<input type="file" accept=".csv,text/csv" onchange="importCsv(this)"></label><div id="preview" class="action"></div>'+(syncReady?'<button class="action" onclick="cloudLogout()">Выйти из облачной учётной записи</button>':'')+'</details>')
+}
 
 async function importHistory(input){
  const file=input.files?.[0];if(!file)return;
@@ -152,7 +157,7 @@ async function importCsv(input){const file=input.files[0];if(!file)return;try{co
 
 const CLOUD_CONFIG={url:"https://ktutaxylnqchvlgfuoeh.supabase.co",key:"sb_publishable_1s1qUg4NI3DIPcU71g2I9w_iL_kXWx1"};
 const CLOUD_SESSION_KEY="foxy-cloud-session-v2",CLOUD_OWNER_KEY="foxy-diary-owner-v1";
-let syncReady=false,syncBusy=false,syncTimer=null,syncUser=null,syncHistory=null,syncConflict=false,syncMessage="На устройстве · войди для синхронизации";
+let syncReady=false,syncBusy=false,syncTimer=null,syncUser=null,syncHistory=null,syncConflict=false,syncMessage="Дневник готов · сохранение на телефоне";
 const cloudConfig=()=>CLOUD_CONFIG;
 const cloudSession=()=>{try{return JSON.parse(localStorage.getItem(CLOUD_SESSION_KEY)||sessionStorage.getItem("foxy-cloud-session-v1")||"{}")}catch(_){return {}}};
 function syncLabel(){return syncMessage}
@@ -165,12 +170,12 @@ async function cloudRequest(path,opts={}){
  return data
 }
 async function cloudAuthenticated(){
- let s=cloudSession();if(!s.access_token)throw Error("Войди в ALISA, чтобы включить синхронизацию");
- if(!s.expires_at||Date.now()>s.expires_at-60000){
-  const r=await cloudRequest("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:JSON.stringify({refresh_token:s.refresh_token})});storeCloudSession(r)
- }
- const u=await cloudRequest("/auth/v1/user");if(!u?.id)throw Error("Войди в ALISA ещё раз");
- if(!u.email_confirmed_at)throw Error("Подтверди email по письму и войди снова");
+ let s=cloudSession();if(!s.access_token)throw Error("Для облака нужен вход в учётную запись");
+ const refresh=async()=>{const current=cloudSession();if(!current.refresh_token)throw Error("Для облака нужен повторный вход");const r=await cloudRequest("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:JSON.stringify({refresh_token:current.refresh_token})});if(!r?.access_token)throw Error("Для облака нужен повторный вход");storeCloudSession(r)};
+ let renewed=false;if(!s.expires_at||Date.now()>s.expires_at-60000){await refresh();renewed=true}
+ let u;try{u=await cloudRequest("/auth/v1/user")}catch(e){if(e.status!==401||renewed)throw e;await refresh();u=await cloudRequest("/auth/v1/user")}
+ if(!u?.id)throw Error("Для облака нужен повторный вход");
+ if(!u.email_confirmed_at)throw Error("Подтверди email по письму");
  return u
 }
 function validDiary(x){return x&&Array.isArray(x.programs)&&Array.isArray(x.sessions)&&Array.isArray(x.measurements)&&x.schedule&&typeof x.schedule==="object"&&!Array.isArray(x.schedule)}
@@ -238,7 +243,7 @@ async function cloudLogin(event){
  const r=await cloudRequest("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email,password})});
  if(!r?.access_token)throw Error("Не удалось получить сеанс входа");
  storeCloudSession(r);$("cloudPassword").value="";await connectCloud()
- }catch(e){cloudInfo("Не удалось войти: "+(String(e.message).includes("Invalid login credentials")?"Проверь email и пароль. Если пароль ещё не задан или забыт, нажми «Задать или восстановить пароль».":String(e.message).includes("Email not confirmed")?"Подтверди email по письму, затем войди.":e.message))}
+ }catch(e){cloudInfo("Не удалось войти: "+(String(e.message).includes("Invalid login credentials")?"Проверь email и пароль. Если пароль ещё не задан или забыт, нажми «Не помню пароль».":String(e.message).includes("Email not confirmed")?"Подтверди email по письму, затем войди.":e.message))}
  finally{if(button){button.disabled=false;button.textContent="Войти"}}
 }
 
@@ -253,7 +258,7 @@ async function cloudSendLoginLink(event){
  sessionStorage.setItem("foxy-email-resend-at",String(Date.now()+60000));
  cloudInfo("Письмо отправлено. Открой последнее письмо от Supabase и нажми Sign in / Войти. Ссылка одноразовая. Пароль не нужен. Проверь также «Спам».")
  }catch(e){cloudInfo("Не удалось отправить письмо: "+(e.status===429?"Слишком много запросов. Подожди немного и повтори.":e.message))}
- finally{if(button){button.disabled=false;button.textContent="Получить письмо для входа"}}
+ finally{if(button){button.disabled=false;button.textContent="Отправить письмо"}}
 }
 async function cloudLogout(){
  clearTimeout(syncTimer);syncReady=false;syncUser=null;
@@ -266,7 +271,7 @@ async function cloudResolve(preference){
 }
 async function cloudPush(){if(!syncReady){try{await connectCloud()}catch(e){cloudInfo(e.message)}}else await syncCloud()}
 
-function cloudCancelRecovery(){sessionStorage.removeItem("foxy-recovery-mode");page="data";render()}
+function cloudCancelRecovery(){sessionStorage.removeItem("foxy-recovery-mode");go("calendar")}
 async function cloudForgotPassword(){
  try{const email=$("cloudEmail").value.trim();if(!email)throw Error("Укажи email своей учётной записи");
  await cloudRequest("/auth/v1/recover?redirect_to="+encodeURIComponent("https://alisiatkc.github.io/foxy-diary/index.html"),{method:"POST",body:JSON.stringify({email})});
@@ -294,7 +299,7 @@ function consumeAuthCallback(){
  return false
 }
 
-async function startCloud(){if(consumeAuthCallback())return;if(!cloudSession().access_token)return;try{await connectCloud()}catch(e){cloudInfo("Локальные записи сохранены · "+e.message)}}
+async function startCloud(){if(consumeAuthCallback())return;if(!cloudSession().access_token)return;try{await connectCloud()}catch(e){cloudInfo("Дневник доступен на телефоне · облако пока не подключено")}}
 window.addEventListener("online",()=>{if(syncReady)syncCloud();else startCloud()});
 window.addEventListener("offline",()=>cloudInfo("Без интернета · изменения сохраняются на устройстве"));
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&syncReady)syncCloud()});
