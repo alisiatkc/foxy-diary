@@ -37,3 +37,7 @@ No actionable P0/P1/P2 findings were identified in the style comparison. No visu
 P3: verify rendering on a physical iPhone when available.
 
 final result: passed
+
+## Report iteration
+
+User-directed changes: grayscale report figures, lower menu, greeting, actionable dashboard, cycle hidden, workout load summaries. Single report was inspected in the 393 px mobile fixture through the cloud browser. Tables fit without document overflow (378 px usable width). Dashboard load card opened Progress; individual report displayed matching 7,590 kg for the synthetic fixture. Comparison summary also displayed 7,590 kg per selected synthetic session. No app console errors captured. PNG-download completion could not be confirmed through the browser event listener; the underlying canvas export remains in place. Corrected opening scroll position and report count labels after review. All 19 Node tests pass. Stored cycle measurements remain preserved; the cycle tab is removed.
