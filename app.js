@@ -24,7 +24,7 @@ const FUL1=[
 const tmpl=(id,name,list)=>({id,name,exercises:list.map(([num,name,sets])=>({id:id+"-"+num,num,name,sets:sets.map(([weight,reps])=>({weight:String(weight),reps:String(reps)})),hint:""}))});
 const initial=()=>({version:3,programs:[tmpl("ful1","Фул 1",FUL1),tmpl("ful2","Фул 2",FUL2)],schedule:{},sessions:[],measurements:[]});
 let db;try{db=JSON.parse(localStorage.getItem(STORE))||initial()}catch(_){db=initial()}if(!Array.isArray(db.programs)||!Array.isArray(db.sessions)||!Array.isArray(db.measurements)||typeof db.schedule!=="object")db=initial();
-let page="calendar",day=localDate(new Date()),sessionId=null,shift=0;
+let page="calendar",day=localDate(new Date()),sessionId=null,shift=0,reportProgramId="ful1",reportIds=[];
 const $=id=>document.getElementById(id);
 const uid=()=>String(Date.now())+"-"+Math.random().toString(36).slice(2,9);
 const esc=x=>String(x==null?"":x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -41,15 +41,16 @@ const paths={
 "dumbbell":'<path d="m6.5 6.5 11 11m-14-7 7-7m3 17 7-7M3 8l5-5m8 18 5-5M5 10l5-5m4 14 5-5"/>',
 "chart-no-axes-column-increasing":'<rect width="4" height="8" x="3" y="13" rx="1"/><rect width="4" height="12" x="10" y="9" rx="1"/><rect width="4" height="18" x="17" y="3" rx="1"/>',
 "heart-pulse":'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3.4 12h4l2-3 3 6 2-3h6.1"/>',
+"file-chart-column":'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 17v-3M12 17v-5M16 17v-2"/>',
 "settings-2":'<path d="M20 7h-9M14 17H4"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
 "check":'<path d="m5 12 4 4L19 6"/>',
 "arrow-left":'<path d="m12 19-7-7 7-7M5 12h14"/>',
 "plus":'<path d="M12 5v14M5 12h14"/>'
 };
 function lucide(name,size){return '<svg class="lucide-icon" aria-hidden="true" width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'+(paths[name]||paths["dumbbell"])+'</svg>'}
-function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span>'+name+'</span></button>').join("")}
+function navButtons(){return [["calendar","Календарь","calendar-days"],["programs","Программы","dumbbell"],["history","История","chart-no-axes-column-increasing"],["reports","Отчёты","file-chart-column"],["metrics","Показатели","heart-pulse"],["data","Данные","settings-2"]].map(([id,name,ico])=>'<button class="'+(page===id?"on":"")+'" onclick="go(\''+id+'\')" aria-label="'+name+'">'+lucide(ico)+'<span>'+name+'</span></button>').join("")}
 function go(p){page=p;sessionId=null;render()}
-function render(){if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
+function render(){if(page==="calendar")return calendar();if(page==="programs")return programs();if(page==="workout")return workout();if(page==="history")return history();if(page==="reports")return reports();if(page==="metrics")return metrics();if(page==="data")return dataPage();}
 function calendar(){
  const start=addDays(localDate(new Date()),shift*14);let days="";
  for(let i=0;i<14;i++){const d=addDays(start,i),p=program(db.schedule[d]);const done=db.sessions.some(s=>s.date===d&&s.finished);days+='<button class="day '+(day===d?"active":"")+'" onclick="chooseDay(\''+d+'\')"><small>'+new Date(d+"T12:00:00").toLocaleDateString("ru-RU",{weekday:"short"})+'</small><b>'+d.slice(-2)+'</b><span>'+(done?"✓ ":"")+esc(p?.name||"")+'</span></button>';}
@@ -83,6 +84,41 @@ function renameProgram(id){const p=program(id),n=prompt("Название про
 function addExercise(id){const p=program(id),num=prompt("Номер, например 5.1");if(!num)return;const name=prompt("Название упражнения");if(!name)return;p.exercises.push({id:uid(),num,name,sets:[{weight:"",reps:""}],hint:""});save();render()}
 function editProgramExercise(pid,eid){const e=program(pid).exercises.find(x=>x.id===eid);const name=prompt("Название",e.name);if(name===null)return;const num=prompt("Номер упражнения",e.num);if(num===null)return;const hint=prompt("Подсказка по технике",e.hint);if(hint===null)return;e.name=name;e.num=num;e.hint=hint;save();render()}
 function duplicateProgram(id){const p=JSON.parse(JSON.stringify(program(id)));p.id=uid();p.name+=" · копия";p.exercises.forEach(e=>e.id=uid());db.programs.push(p);save();render()}
+
+function reports(){
+ const p=program(reportProgramId)||db.programs[0];if(!p){layout("Отчёты","Сравнение тренировок","<p>Добавь тренировочные программы.</p>");return}reportProgramId=p.id;
+ const all=db.sessions.filter(s=>s.programId===p.id&&s.finished).sort((a,b)=>a.date.localeCompare(b.date));reportIds=reportIds.filter(id=>all.some(s=>s.id===id));
+ if(!reportIds.length&&all.length)reportIds=all.slice(-Math.min(2,all.length)).map(s=>s.id);
+ const chosen=all.filter(s=>reportIds.includes(s.id));const display=chosen.slice(-4);
+ const selections='<div class="card noprint"><h2>Сравнить тренировки</h2><label>Программа<select onchange="setReportProgram(this.value)">'+db.programs.map(x=>'<option value="'+esc(x.id)+'" '+(x.id===p.id?'selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></label><p class="muted" style="margin-top:14px">Выбери до четырёх дат для сравнения.</p><div class="report-date-grid">'+all.map(s=>'<label class="date-option"><input type="checkbox" '+(reportIds.includes(s.id)?'checked':'')+' onchange="toggleReportDate(\''+s.id+'\',this.checked)"><span>'+fmt(s.date)+'</span></label>').join('')+'</div><div class="row action"><button class="primary" onclick="downloadReport()">Сохранить картинку PNG</button><button onclick="window.print()">Печать / PDF</button></div></div>';
+ let view='';
+ if(!all.length){view='<div class="card">В этой программе ещё нет завершённых тренировок. Импортируй историю в разделе «Данные».</div>'}
+ else if(!display.length){view='<div class="card">Выбери даты выше.</div>'}
+ else{
+  const cols=display.map(x=>'<th>'+esc(x.date.slice(8))+'/'+esc(x.date.slice(5,7))+'</th>').join('');
+  let rows=p.exercises.map(ex=>{
+   const vals=display.map(s=>{const e=s.exercises.find(x=>x.num===ex.num||x.id===ex.id);return '<td>'+(e?e.sets.map((st,i)=>'<div class="comparison-set"><small>'+(i+1)+'</small> '+esc(st.weight||'—')+' × '+esc(st.reps||'—')+'</div>').join(''):'—')+'</td>'}).join('');
+   return '<tr><th class="comparison-exercise">'+esc(ex.num)+' '+esc(ex.name)+'</th>'+vals+'</tr>'
+  }).join('');
+  view='<div class="card comparison-card"><div class="report-brand">FOXY <span>/ TRAINING LOG</span></div><h2>'+esc(p.name)+'</h2><p class="muted">Сравнение тренировок · '+display.map(s=>esc(s.date.slice(8)+'.'+s.date.slice(5,7))).join(' / ')+'</p><div class="comparison-scroll"><table class="comparison-table"><thead><tr><th>Упражнение</th>'+cols+'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+ }
+ layout("Отчёты","Сравни несколько дат и сохрани готовую картинку для Владимира",selections+view)
+}
+function setReportProgram(id){reportProgramId=id;reportIds=[];render()}
+function toggleReportDate(id,on){if(on){if(reportIds.length>=4){alert('Можно сравнить до четырёх тренировок');render();return}reportIds.push(id)}else reportIds=reportIds.filter(x=>x!==id);render()}
+function wrapText(ctx,text,maxWidth){let lines=[],line='';for(const w of String(text).split(/\s+/)){const test=line?line+' '+w:w;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=w}else line=test}if(line)lines.push(line);return lines}
+function downloadReport(){
+ const p=program(reportProgramId),sessions=db.sessions.filter(s=>reportIds.includes(s.id)&&s.programId===p.id).sort((a,b)=>a.date.localeCompare(b.date));if(!sessions.length){alert('Выбери хотя бы одну дату');return}
+ const W=1240,pad=42,colName=415,col=(W-2*pad-colName)/sessions.length,x0=pad,y0=230,rows=[];
+ const cvs=document.createElement('canvas'),ctx=cvs.getContext('2d');ctx.font='27px Manrope, sans-serif';
+ for(const ex of p.exercises){const nameLines=wrapText(ctx,ex.num+' '+ex.name,colName-32);const count=Math.max(3,...sessions.map(s=>s.exercises.find(e=>e.num===ex.num)?.sets.length||0));rows.push({ex,nameLines,height:Math.max(nameLines.length*33+30,count*32+42)})}
+ const height=y0+rows.reduce((a,b)=>a+b.height,0)+66;cvs.width=W;cvs.height=height;ctx.fillStyle='#fcfaf9';ctx.fillRect(0,0,W,height);
+ ctx.fillStyle='#372a31';ctx.font='700 48px sans-serif';ctx.fillText('FOXY',pad,80);ctx.fillStyle='#a7647f';ctx.font='600 25px sans-serif';ctx.fillText(p.name,pad,125);ctx.fillStyle='#87777e';ctx.font='21px sans-serif';ctx.fillText('СРАВНЕНИЕ ТРЕНИРОВОК',pad,164);
+ ctx.fillStyle='#f4e6eb';ctx.fillRect(pad,y0-55,W-pad*2,55);ctx.fillStyle='#704656';ctx.font='700 22px sans-serif';ctx.fillText('Упражнение',pad+16,y0-19);sessions.forEach((s,i)=>ctx.fillText(s.date.slice(8)+'.'+s.date.slice(5,7),pad+colName+i*col+20,y0-19));
+ let yy=y0;for(const r of rows){ctx.fillStyle='#fff';ctx.fillRect(pad,yy,W-pad*2,r.height);ctx.strokeStyle='#e9dae1';ctx.lineWidth=1;ctx.strokeRect(pad,yy,W-pad*2,r.height);ctx.beginPath();ctx.moveTo(pad+colName,yy);ctx.lineTo(pad+colName,yy+r.height);sessions.forEach((_,i)=>{if(i>0){ctx.moveTo(pad+colName+i*col,yy);ctx.lineTo(pad+colName+i*col,yy+r.height)}});ctx.stroke();ctx.font='600 22px sans-serif';ctx.fillStyle='#372a31';r.nameLines.forEach((t,j)=>ctx.fillText(t,pad+14,yy+36+j*33));sessions.forEach((s,i)=>{const e=s.exercises.find(e=>e.num===r.ex.num),sets=e?.sets||[];ctx.font='21px sans-serif';ctx.fillStyle='#372a31';sets.forEach((st,k)=>ctx.fillText((k+1)+'. '+(st.weight||'—')+' × '+(st.reps||'—'),pad+colName+i*col+18,yy+35+k*32))});yy+=r.height}
+ cvs.toBlob(b=>{if(!b)return;const url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='FOXY-'+p.name.replace(/\s+/g,'-')+'-'+sessions.map(s=>s.date).join('_')+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)},'image/png')
+}
+
 function history(){layout("История","Все записанные тренировки",db.sessions.length?db.sessions.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(s=>'<div class="card row between"><div><b>'+fmt(s.date)+'</b><p>'+esc(s.programName)+' · '+(s.finished?"✓ завершена":"черновик")+'</p></div><div class="row"><button onclick="openSession(\''+s.id+'\')">Открыть</button><button class="small" onclick="showReport(\''+s.id+'\')">Отчёт</button></div></div>').join(""):'<div class="card">Пока нет тренировок. Начни с календаря.</div>')}
 function metrics(){const list=db.measurements.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(m=>'<tr><td>'+esc(m.date)+'</td><td>'+esc(m.type)+'</td><td>'+esc(m.value)+'</td><td>'+esc(m.source)+'</td><td>'+esc(m.note)+'</td><td><button class="small" onclick="deleteMetric(\''+m.id+'\')">×</button></td></tr>').join("");layout("Показатели","Вес, InBody, цикл из Flo, самочувствие и любые другие измерения",'<div class="card"><h2>Новая запись</h2><form onsubmit="addMetric(event)"><div class="fields"><label class="field">Дата<input id="mDate" type="date" required value="'+day+'"></label><label class="field">Показатель<select id="mType">'+["weight","bodyfat","muscle","inbody","cycle_start","cycle_end","cycle_day","sleep","mood","waist","hips","other"].map(x=>'<option value="'+x+'">'+x+'</option>').join("")+'</select></label><label class="field">Значение<input id="mValue" required placeholder="63,9 / начало"></label><label class="field">Источник<input id="mSource" placeholder="Flo / InBody / весы"></label></div><label class="action">Заметка<input id="mNote" placeholder="По желанию"></label><div class="action"><button class="primary" type="submit">Сохранить показатель</button></div></form></div><div class="card"><h2>История показателей</h2><div style="overflow:auto"><table class="table"><thead><tr><th>Дата</th><th>Тип</th><th>Значение</th><th>Источник</th><th>Заметка</th><th></th></tr></thead><tbody>'+list+'</tbody></table></div></div>')}
 function addMetric(e){e.preventDefault();db.measurements.push({id:uid(),date:$("mDate").value,type:$("mType").value,value:$("mValue").value,source:$("mSource").value,note:$("mNote").value});save();render()}
