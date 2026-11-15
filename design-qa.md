@@ -41,3 +41,7 @@ final result: passed
 ## Report iteration
 
 User-directed changes: grayscale report figures, lower menu, greeting, actionable dashboard, cycle hidden, workout load summaries. Single report was inspected in the 393 px mobile fixture through the cloud browser. Tables fit without document overflow (378 px usable width). Dashboard load card opened Progress; individual report displayed matching 7,590 kg for the synthetic fixture. Comparison summary also displayed 7,590 kg per selected synthetic session. No app console errors captured. PNG-download completion could not be confirmed through the browser event listener; the underlying canvas export remains in place. Corrected opening scroll position and report count labels after review. All 19 Node tests pass. Stored cycle measurements remain preserved; the cycle tab is removed.
+
+## Cardio iteration
+
+Browser tested at 393 × 852 CSS px using isolated synthetic records. Started an empty legacy plan named Кардио, entered 40 minutes and 320 active kcal, finished, then verified the dashboard showed 320 kcal and the cardio report showed time/calories with no weights or sets. Root scroll width equals 393 px client width. Plan type changes preserve program exercise arrays and historical session snapshots. Missing calories render a dash; active and total calories are never added together. All 22 tests passed. Temporary fixtures removed after verification.
