@@ -45,3 +45,7 @@ User-directed changes: grayscale report figures, lower menu, greeting, actionabl
 ## Cardio iteration
 
 Browser tested at 393 × 852 CSS px using isolated synthetic records. Started an empty legacy plan named Кардио, entered 40 minutes and 320 active kcal, finished, then verified the dashboard showed 320 kcal and the cardio report showed time/calories with no weights or sets. Root scroll width equals 393 px client width. Plan type changes preserve program exercise arrays and historical session snapshots. Missing calories render a dash; active and total calories are never added together. All 22 tests passed. Temporary fixtures removed after verification.
+
+## Coach assignment and records iteration
+
+Mobile fixture 393 × 852 CSS px (378 px usable with desktop scrollbar). Verified the first exercise showed an actual best-weight set of 40 × 12 and separate maximum-reps set of 30 × 20. Entered a session-only coach assignment, observed it replace records live, cleared it and verified records returned. Navigated away and resumed the same draft. Document width equaled scroll width. Dashboard showed strength load and calories together; cardio minutes/calories covered by automated tests. Task editor now starts collapsed when reopening a session and its label updates live. Historical records ignore unfinished/current/future sessions and do not combine weight/reps from different sets. All 26 tests passed. No production private records modified during verification.
