@@ -68,7 +68,7 @@ function calendar(){
 function chooseDay(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return;day=d;render()}
 function setDayPlan(id){if(id)db.schedule[day]=id;else delete db.schedule[day];save();render()}
 function planTwoWeeks(){const a=db.programs[0],b=db.programs[1];if(!a||!b)return alert("Сначала добавь две программы");if(!confirm("Пример: назначить Фул 1 по понедельникам, Фул 2 по четвергам на показанные 2 недели? Твои существующие планы в эти дни будут заменены."))return;const start=addDays(localDate(new Date()),shift*14);for(let i=0;i<14;i++){const d=addDays(start,i),dow=new Date(d+"T12:00:00").getDay();if(dow===1)db.schedule[d]=a.id;if(dow===4)db.schedule[d]=b.id}save();render()}
-function newSession(){const p=program(db.schedule[day])||db.programs[0];if(!p)return alert("Добавь план");const draft=db.sessions.find(s=>s.date===day&&s.programId===p.id&&!s.finished);if(draft){openSession(draft.id);return}if(!isCardio(p)&&!p.exercises.length)return alert("Сначала добавь упражнения в план");const s={id:uid(),date:day,programId:p.id,programName:p.name,trainingType:isCardio(p)?'cardio':'strength',finished:false,comment:"",rpe:"",duration:"",heartRate:"",heartMax:"",activeCalories:"",totalCalories:"",exercises:isCardio(p)?[]:p.exercises.map(e=>({id:e.id,num:e.num,name:e.name,hint:e.hint||"",comment:"",rpe:"",coachTask:"",sets:e.sets.map(x=>({weight:x.weight,reps:x.reps,done:false}))}))};db.sessions.push(s);save();sessionId=s.id;page="workout";render()}
+function newSession(){const p=program(db.schedule[day])||db.programs[0];if(!p)return alert("Добавь план");const draft=db.sessions.find(s=>s.date===day&&s.programId===p.id&&!s.finished);if(draft){openSession(draft.id);return}if(!isCardio(p)&&!p.exercises.length)return alert("Сначала добавь упражнения в план");const s={id:uid(),date:day,programId:p.id,programName:p.name,trainingType:isCardio(p)?'cardio':'strength',finished:false,comment:"",rpe:"",duration:"",heartRate:"",heartMax:"",activeCalories:"",totalCalories:"",exercises:isCardio(p)?[]:p.exercises.map(e=>({id:e.id,num:e.num,name:e.name,hint:e.hint||"",comment:"",rpe:"",planSets:(e.planSets||[]).map(set=>({...set})),sets:(e.planSets?.length?e.planSets:e.sets).map(x=>({weight:x.weight,reps:x.reps,done:false}))}))};db.sessions.push(s);save();sessionId=s.id;page="workout";render()}
 function openSession(id){sessionId=id;page="workout";render()}
 function exerciseRecords(current,exercise){
  const normalize=name=>String(name||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' '),name=normalize(exercise.name);let bestWeight=null,bestReps=null;
@@ -76,9 +76,31 @@ function exerciseRecords(current,exercise){
  return {bestWeight,bestReps}
 }
 function recordSetLabel(record){return (record.weight?esc(record.weight)+' кг':'Без веса')+' × '+record.reps}
-function exerciseReference(s,e){const task=String(e.coachTask||'').trim();if(task)return '<span class="reference-label">Задание Владимира</span><p class="coach-task-text">'+esc(task)+'</p>';const {bestWeight,bestReps}=exerciseRecords(s,e);if(!bestWeight)return '<span class="reference-label">Лучшее за всё время</span><p>Пока нет завершённых тренировок с этим упражнением.</p>';return '<span class="reference-label">Лучшее за всё время</span><p><strong>'+recordSetLabel(bestWeight)+'</strong><small>'+fmt(bestWeight.date)+'</small></p>'+(bestReps&&bestReps.reps>bestWeight.reps?'<p class="reps-record">Больше всего повторов: <strong>'+recordSetLabel(bestReps)+'</strong></p>':'')}
-function exerciseGuide(s,e,index){return '<div class="exercise-guide"><div id="exerciseReference-'+index+'" class="exercise-reference" aria-live="polite">'+exerciseReference(s,e)+'</div><details class="coach-task-editor"><summary id="coachTaskSummary-'+index+'">'+(e.coachTask?'Изменить задание':'Добавить задание Владимира')+'</summary><label class="action">Задание на эту тренировку<textarea aria-label="Задание Владимира для '+esc(e.name)+'" rows="2" oninput="editCoachTask('+index+',this.value)" placeholder="Например: 3 подхода по 15 повторов, вес 27 кг">'+esc(e.coachTask||'')+'</textarea></label><small>Без задания показывается лучший результат.</small></details></div>'}
-function editCoachTask(index,value){const s=ses(sessionId),e=s?.exercises?.[index];if(!e)return;e.coachTask=value;save();const reference=$('exerciseReference-'+index);if(reference)reference.innerHTML=exerciseReference(s,e);const summary=$('coachTaskSummary-'+index);if(summary)summary.textContent=value.trim()?'Изменить задание':'Добавить задание Владимира'}
+function exerciseReference(s,e){const plan=e.planSets||[];
+ if(plan.some(set=>set.weight||set.reps))return '<span class="reference-label">План</span>'+plan.map((set,i)=>`<p>${i+1}. ${esc(set.weight||'—')}${set.weight?' кг':''} × ${esc(set.reps||'—')}`+'</p>').join('');
+ const task=String(e.coachTask||'').trim();if(task)return '<span class="reference-label">План</span><p class="coach-task-text">'+esc(task)+'</p>';const {bestWeight,bestReps}=exerciseRecords(s,e);if(!bestWeight)return '<span class="reference-label">Лучшее за всё время</span><p>Пока нет завершённых тренировок с этим упражнением.</p>';return '<span class="reference-label">Лучшее за всё время</span><p><strong>'+recordSetLabel(bestWeight)+'</strong><small>'+fmt(bestWeight.date)+'</small></p>'+(bestReps&&bestReps.reps>bestWeight.reps?'<p class="reps-record">Больше всего повторов: <strong>'+recordSetLabel(bestReps)+'</strong></p>':'')}
+function exerciseGuide(s,e){
+ return '<div class="exercise-guide"><div class="exercise-reference">'+exerciseReference(s,e)+'</div></div>'
+}
+function planEditor(pi,ei,e){
+ const rows=(e.planSets??e.sets).map((set,i)=>`<div class="planned-row"><span>${i+1}</span><label>Вес, кг<input value="${esc(set.weight)}" onchange="updatePlannedSet(${pi},${ei},${i},'weight',this.value)"></label><label>Повторы<input inputmode="numeric" value="${esc(set.reps)}" onchange="updatePlannedSet(${pi},${ei},${i},'reps',this.value)"></label><button class="small" aria-label="Удалить подход из плана" onclick="changePlannedSets(${pi},${ei},${i})">×</button></div>`).join('');
+ return `<details class="planned-editor" data-plan-editor="${pi}-${ei}"><summary>План подходов</summary>${rows}<div class="row action"><button onclick="changePlannedSets(${pi},${ei},-1)">Добавить подход</button><button onclick="changePlannedSets(${pi},${ei},-2)">Очистить план</button></div></details>`
+}
+function updatePlannedSet(pi,ei,index,field,value){
+ const e=db.programs[pi].exercises[ei];
+ e.planSets??=e.sets.map(set=>({...set}));
+ e.planSets[index][field]=value.trim();save()
+}
+function changePlannedSets(pi,ei,index){
+ const e=db.programs[pi].exercises[ei];
+ e.planSets??=e.sets.map(set=>({...set}));
+ if(index===-2)e.planSets=[];
+ else if(index===-1)e.planSets.push({weight:'',reps:''});
+ else e.planSets.splice(index,1);
+ save();
+ const editor=document.querySelector(`[data-plan-editor="${pi}-${ei}"]`);
+ if(editor){editor.outerHTML=planEditor(pi,ei,e);document.querySelector(`[data-plan-editor="${pi}-${ei}"]`).open=true}
+}
 function workout(){
  const s=ses(sessionId);if(!s){go("calendar");return}
  if(isCardio(s))return cardioWorkout(s);
@@ -126,7 +148,7 @@ function showReport(id){
 }
 function setProgramType(id,type){const p=program(id);if(!p||!['cardio','strength'].includes(type))return;p.trainingType=type;save();render()}
 function programs(){
- const list=db.programs.map(p=>'<details class="card program-card"><summary><span><strong>'+esc(p.name)+'</strong><small>'+(isCardio(p)?'Кардио':p.exercises.length+' упражнений')+'</small></span>'+lucide('chevron-down')+'</summary><div class="program-content"><label class="action">Формат<select onchange="setProgramType(\''+p.id+'\',this.value)"><option value="strength" '+(!isCardio(p)?'selected':'')+'>Силовая</option><option value="cardio" '+(isCardio(p)?'selected':'')+'>Кардио</option></select></label><div class="row action"><button class="small" onclick="renameProgram(\''+p.id+'\')">Переименовать</button></div>'+(isCardio(p)?'<p class="note">Время и калории записываются в тренировке.</p>':'<div class="program-exercises">'+p.exercises.map(e=>'<div class="row between program-exercise"><span>'+esc(e.num)+' '+esc(e.name)+'</span><button class="small" onclick="editProgramExercise(\''+p.id+'\',\''+e.id+'\')">Изменить</button></div>').join('')+'</div><button class="small action" onclick="addExercise(\''+p.id+'\')">Добавить упражнение</button>')+'<div class="action"><button class="small" onclick="duplicateProgram(\''+p.id+'\')">Дублировать</button></div></div></details>').join('');
+ const list=db.programs.map((p,pi)=>'<details class="card program-card"><summary><span><strong>'+esc(p.name)+'</strong><small>'+(isCardio(p)?'Кардио':p.exercises.length+' упражнений')+'</small></span>'+lucide('chevron-down')+'</summary><div class="program-content"><label class="action">Формат<select onchange="setProgramType(\''+p.id+'\',this.value)"><option value="strength" '+(!isCardio(p)?'selected':'')+'>Силовая</option><option value="cardio" '+(isCardio(p)?'selected':'')+'>Кардио</option></select></label><div class="row action"><button class="small" onclick="renameProgram(\''+p.id+'\')">Переименовать</button></div>'+(isCardio(p)?'<p class="note">Время и калории записываются в тренировке.</p>':'<div class="program-exercises">'+p.exercises.map((e,ei)=>'<div class="row between program-exercise"><span>'+esc(e.num)+' '+esc(e.name)+'</span><button class="small" onclick="editProgramExercise(\''+p.id+'\',\''+e.id+'\')">Изменить</button></div>'+planEditor(pi,ei,e)).join('')+'</div><button class="small action" onclick="addExercise(\''+p.id+'\')">Добавить упражнение</button>')+'<div class="action"><button class="small" onclick="duplicateProgram(\''+p.id+'\')">Дублировать</button></div></div></details>').join('');
  layout('Планы','', '<button class="primary" onclick="createProgram()">'+lucide('plus')+' Новый план</button>'+list)
 }
 function createProgram(){const name=prompt("Название плана");if(!name?.trim())return;db.programs.push({id:uid(),name:name.trim(),exercises:[]});save();render()}
