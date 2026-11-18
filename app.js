@@ -101,11 +101,32 @@ function changePlannedSets(pi,ei,index){
  const editor=document.querySelector(`[data-plan-editor="${pi}-${ei}"]`);
  if(editor){editor.outerHTML=planEditor(pi,ei,e);document.querySelector(`[data-plan-editor="${pi}-${ei}"]`).open=true}
 }
+function applyPlanToDraft(){
+ const session=ses(sessionId);
+ if(!session||session.finished||isCardio(session))return;
+ const plan=program(session.programId);
+ for(const exercise of session.exercises){
+  const planned=plan?.exercises.find(item=>item.id===exercise.id)?.planSets;
+  if(!planned?.some(set=>set.weight||set.reps))continue;
+  exercise.planSets=planned.map(set=>({...set}));
+  planned.forEach((target,index)=>{
+   const actual=exercise.sets[index]??={weight:'',reps:'',done:false};
+   if(actual.done)return;
+   if(String(actual.weight??'').trim()==='')actual.weight=target.weight;
+   if(String(actual.reps??'').trim()==='')actual.reps=target.reps;
+  });
+ }
+ save();
+ render();
+}
 function workout(){
  const s=ses(sessionId);if(!s){go("calendar");return}
  if(isCardio(s))return cardioWorkout(s);
  const total=s.exercises.reduce((n,e)=>n+e.sets.length,0),done=s.exercises.reduce((n,e)=>n+e.sets.filter(x=>x.done).length,0);
  let body='<div class="row between"><div><span class="tag">'+fmt(s.date)+'</span><h2>'+esc(s.programName)+'</h2></div><button onclick="go(\'calendar\')">'+lucide("arrow-left")+' Главная</button></div><div class="workout-summary"><strong id="workoutProgress" aria-live="polite">'+done+' из '+total+' подходов выполнено</strong><span>Изменения сохраняются автоматически</span></div>';
+ if(!s.finished&&program(s.programId)?.exercises.some(e=>e.planSets?.some(set=>set.weight||set.reps))){
+  body+='<div class="row action"><button onclick="applyPlanToDraft()">Заполнить пустые поля из плана</button></div>';
+ }
  s.exercises.forEach((e,ei)=>{const old=previous(s,e.id);body+='<div class="card workout-exercise"><div class="row between"><div><div class="exercise-title">'+esc(e.num)+" "+esc(e.name)+'</div>'+(old?'<small>Прошлая тренировка</small>':'<small>Результаты упражнения</small>')+'</div><button class="small" onclick="addSet('+ei+')">'+lucide("plus")+' Подход</button></div>'+(e.hint?'<p class="muted">'+esc(e.hint)+'</p>':'')+exerciseGuide(s,e,ei)+'<div class="set sethead"><div>№</div><div>Было</div><div>Вес, кг</div><div>Повт.</div><div>✓</div><div>×</div></div>';e.sets.forEach((set,si)=>{const prev=old?.sets?.[si];body+='<div class="set"><span>'+(si+1)+'</span><span class="prev">'+(prev?esc(prev.weight||"—")+' × '+esc(prev.reps||"—"):'—')+'</span><label class="set-weight"><span>Вес, кг</span><input aria-label="Вес" value="'+esc(set.weight)+'" oninput="editSet('+ei+','+si+',\'weight\',this.value)" placeholder="—"></label><label class="set-reps"><span>Повторы</span><input aria-label="Повторы" inputmode="numeric" value="'+esc(set.reps)+'" oninput="editSet('+ei+','+si+',\'reps\',this.value)" placeholder="—"></label><label class="set-done"><span class="sr-only">Подход выполнен</span><input type="checkbox" '+(set.done?"checked":"")+' onchange="editSet('+ei+','+si+',\'done\',this.checked)"></label><button class="small" aria-label="Удалить подход" '+(e.sets.length===1?'disabled ':'')+'onclick="removeSet('+ei+','+si+')">'+lucide("trash-2")+'</button></div>'});body+='<div class="fields"><label class="field">Сложность RPE<select onchange="editExercise('+ei+',\'rpe\',this.value)">'+options(["","1","2","3","4","5","6","7","8","9","10"],e.rpe)+'</select></label><label style="flex:1;min-width:150px">Комментарий<input value="'+esc(e.comment)+'" oninput="editExercise('+ei+',\'comment\',this.value)" placeholder="Как ощущения?"></label></div></div>'});
  body+='<div class="card"><h3>Итоги занятия</h3><div class="fields">'+[['duration','Длительность, мин'],['heartRate','Средний пульс'],['heartMax','Макс. пульс'],['activeCalories','Активные ккал'],['totalCalories','Всего ккал']].map(([k,t])=>'<label class="field">'+t+'<input value="'+esc(s[k])+'" inputmode="decimal" oninput="editSession(\''+k+'\',this.value)"></label>').join("")+'</div><div class="fields action"><label class="field">Общая сложность<select onchange="editSession(\'rpe\',this.value)">'+options(["","1","2","3","4","5","6","7","8","9","10"],s.rpe)+'</select></label><label style="flex:1;min-width:180px">Заметки<textarea oninput="editSession(\'comment\',this.value)">'+esc(s.comment)+'</textarea></label></div><div class="row action"><button class="primary" onclick="finishSession()">'+lucide("check")+" "+(s.finished?"Тренировка завершена":"Завершить тренировку")+'</button><button onclick="showReport(\''+s.id+'\')">Экран для скриншота</button><button onclick="deleteSession(\''+s.id+'\')">Удалить</button></div></div>';
  layout("Тренировка","Записывай результаты прямо между подходами",body)
